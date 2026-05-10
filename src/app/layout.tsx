@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google"; // خطوط أرقى للأكاديمية
+import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Navbar } from "@/components/Navbar";
-import { Toaster } from "@/components/ui/sonner"
+import { Toaster } from "@/components/ui/sonner";
+import { AIChatBubble } from "@/components/shared/AIChatBubble";
+import { Footer } from "@/components/shared/Footer";
 
-// إعداد الخطوط: Inter للنصوص العادية و Playfair للعناوين (يعطي طابع كلاسيكي)
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
@@ -27,11 +28,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning> 
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${inter.variable} ${playfair.variable} font-sans antialiased min-h-screen bg-background text-foreground`}
       >
-        {/* ThemeProvider يسمح بتبديل الوضع الليلي والنهار */}
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -41,8 +41,11 @@ export default function RootLayout({
           <div className="relative flex min-h-screen flex-col">
             <Navbar />
             <main className="flex-1">{children}</main>
+            <Footer />
           </div>
-           <Toaster />
+
+          <AIChatBubble />
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

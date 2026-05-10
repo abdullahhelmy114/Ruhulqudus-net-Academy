@@ -67,6 +67,13 @@ export function Navbar() {
       ? "/dashboard/teacher"
       : "/dashboard/student";
 
+  const profileLink =
+    role === "admin"
+      ? "/profile/admin"
+      : role === "teacher"
+        ? "/profile/teacher"
+        : "/profile/student";
+
   // استخراج الحرف الأول من اسم المستخدم (أو البريد)
   const initial = user?.user_metadata?.full_name
     ? user.user_metadata.full_name.charAt(0).toUpperCase()
@@ -144,7 +151,7 @@ export function Navbar() {
                     <LayoutDashboard className="h-4 w-4" /> Dashboard
                   </Link>
                   <Link
-                    href="/profile"
+                    href={profileLink}
                     onClick={() => setMenuOpen(false)}
                     className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-accent"
                   >

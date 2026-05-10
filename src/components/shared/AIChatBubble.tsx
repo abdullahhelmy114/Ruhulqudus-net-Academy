@@ -1,27 +1,73 @@
-import { useState } from "react";
+"use client";
+
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Send, X, Sparkles } from "lucide-react";
+import { Brain, Send, X, Sparkles, Loader2 } from "lucide-react";
 
 type Msg = { role: "user" | "ai"; text: string };
+
+const SYSTEM_PROMPT = `You are Nūr, an elite AI assistant for Ruhulqudus Academy, a prestigious Arabic language institution. 
+Your role is to help students, teachers, and administrators with:
+- Arabic grammar, vocabulary, and translation.
+- Navigating the academy platform (login, courses, profiles, dashboard).
+- Providing cultural and academic insights.
+Always respond in a warm, respectful, and knowledgeable tone. If asked in Arabic, reply in Arabic; otherwise use English.`;
 
 export function AIChatBubble() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([
-    { role: "ai", text: "أهلاً! I'm Nūr, your Arabic learning companion. Ask me anything — translations, grammar, or how to navigate the academy." },
+    {
+      role: "ai",
+      text: "أهلاً وسهلاً! I'm Nūr, your Arabic learning companion. How can I assist you today?",
+    },
   ]);
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const send = () => {
-    if (!input.trim()) return;
-    const user = input.trim();
-    setMessages((m) => [...m, { role: "user", text: user }]);
+  // التمرير التلقائي إلى آخر رسالة
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const send = async () => {
+    const prompt = input.trim();
+    if (!prompt || isLoading) return;
+
+    const userMsg: Msg = { role: "user", text: prompt };
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
-    setTimeout(() => {
-      setMessages((m) => [
-        ...m,
-        { role: "ai", text: "Beautiful question. (Connect Lovable AI to enable live responses.)" },
+    setIsLoading(true);
+
+    try {
+      // تحويل كل الرسائل السابقة + رسالة النظام إلى تنسيق OpenAI
+      const apiMessages = [
+        { role: "system", content: SYSTEM_PROMPT },
+        ...messages.map((m) => ({
+          role: m.role === "ai" ? "assistant" : "user",
+          content: m.text,
+        })),
+        { role: "user", content: prompt },
+      ];
+
+      const response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: apiMessages }),
+      });
+
+      if (!response.ok) throw new Error("AI request failed");
+
+      const data = await response.json();
+      setMessages((prev) => [...prev, { role: "ai", text: data.text }]);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "ai", text: "عذراً، حدث خطأ أثناء الاتصال بالمساعد. حاول مرة أخرى لاحقاً." },
       ]);
-    }, 600);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -64,6 +110,14 @@ export function AIChatBubble() {
                   </div>
                 </div>
               ))}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="max-w-[80%] rounded-2xl px-3 py-2 bg-muted">
+                    <Loader2 className="h-4 w-4 animate-spin text-gold" />
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
 
             <div className="border-t p-3">
@@ -71,11 +125,16 @@ export function AIChatBubble() {
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && send()}
+                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
                   placeholder="Ask in English or العربية..."
+                  disabled={isLoading}
                   className="flex-1 bg-transparent text-sm outline-none"
                 />
-                <button onClick={send} className="grid h-8 w-8 place-items-center rounded-full gradient-gold">
+                <button
+                  onClick={send}
+                  disabled={isLoading || !input.trim()}
+                  className="grid h-8 w-8 place-items-center rounded-full gradient-gold disabled:opacity-50"
+                >
                   <Send className="h-4 w-4 text-gold-foreground" />
                 </button>
               </div>
