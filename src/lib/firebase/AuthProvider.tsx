@@ -48,7 +48,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // إنشاء الملف الشخصي في Neon إذا لم يكن موجودًا
+        // تم تعليق استدعاء /api/user مؤقتًا لتشخيص خطأ 500
+        /*
         try {
           await fetch('/api/user', {
             method: 'POST',
@@ -64,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
           console.error('Failed to sync profile with Neon:', error);
         }
+        */
       } else {
         setRole(null);
       }
