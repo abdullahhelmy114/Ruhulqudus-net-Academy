@@ -2,38 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/firebase/AuthProvider";
 import { AdminProfile } from "@/components/profile/AdminProfile";
 
 export default function AdminProfilePage() {
   const router = useRouter();
-  const supabase = createClient();
-  const [loading, setLoading] = useState(true);
+  const { user, isLoading } = useAuth();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
+    if (isLoading) return;
+    if (!user) { router.push("/login"); return; }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
+    // السماح فقط للمستخدمين المسجلين (سيتم إضافة فحص الأدمن لاحقاً)
+    setReady(true);
+  }, [user, isLoading, router]);
 
-      if (profile?.role === "admin") {
-        setLoading(false);
-        return;
-      }
-
-      // إعادة التوجيه إلى البروفايل المناسب
-      if (profile?.role === "teacher") router.push("/profile/teacher");
-      else if (profile?.role === "student") router.push("/profile/student");
-      else router.push("/login");
-    })();
-  }, [supabase, router]);
-
-  if (loading) return (
+  if (!ready) return (
     <div className="flex min-h-[50vh] items-center justify-center">
       <div className="shimmer h-8 w-48 rounded-full" />
     </div>

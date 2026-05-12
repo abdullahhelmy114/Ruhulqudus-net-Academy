@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/firebase/AuthProvider";
+import Link from "next/link";
 import {
   Users, GraduationCap, DollarSign, TrendingUp, ShieldCheck, FileText,
   CheckCircle2, XCircle, Eye, Search, BookOpen, Clock, Wallet,
@@ -8,7 +10,6 @@ import {
   Filter, Download, Bot, Save, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 
 type TabKey = "overview" | "teachers" | "courses" | "users" | "finance" | "ai";
 
@@ -21,7 +22,7 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: "ai", label: "AI Configuration", icon: Bot },
 ];
 
-// Types (تعديل لتتوافق مع جدول profiles)
+// Types
 type User = {
   id: string;
   full_name: string;
@@ -94,50 +95,6 @@ type PendingItems = {
   reported_content: number;
 };
 
-function getLastMonthDate(): string {
-  const date = new Date();
-  date.setMonth(date.getMonth() - 1);
-  return date.toISOString();
-}
-
-function getDaysAgoDate(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return date.toISOString();
-}
-
-function aggregateDailyRevenue(transactions: any[], days: number): number[] {
-  const dailyMap = new Map<string, number>();
-  for (let i = 0; i < days; i++) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    const dateKey = date.toISOString().split('T')[0];
-    dailyMap.set(dateKey, 0);
-  }
-  for (const tx of transactions) {
-    const dateKey = new Date(tx.created_at).toISOString().split('T')[0];
-    const current = dailyMap.get(dateKey) || 0;
-    dailyMap.set(dateKey, current + (tx.amount / 1000));
-  }
-  return Array.from(dailyMap.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([_, value]) => value);
-}
-
-function formatRelativeTime(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-  if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins} minutes ago`;
-  if (diffHours < 24) return `${diffHours} hours ago`;
-  if (diffDays === 1) return "yesterday";
-  return `${diffDays} days ago`;
-}
-
 function LoadingSpinner() {
   return (
     <div className="flex h-64 items-center justify-center">
@@ -147,11 +104,47 @@ function LoadingSpinner() {
 }
 
 export default function AdminDashboard() {
+  const { user, isLoading: authLoading } = useAuth();
   const [tab, setTab] = useState<TabKey>("overview");
   const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
     setTimeout(() => setIsLoading(false), 500);
   }, []);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <h1 className="text-2xl font-serif text-foreground mb-2">الرجاء تسجيل الدخول</h1>
+          <p className="text-muted-foreground">يجب تسجيل الدخول لعرض لوحة التحكم</p>
+          <Link href="/login" className="mt-4 inline-block text-amber-600 hover:underline">
+            تسجيل الدخول →
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // التحقق من أن المستخدم هو الأدمن
+  if (user.email !== "abdullahhelmy114@gmail.com") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-red-600 mb-4">غير مصرح</h1>
+          <p className="text-muted-foreground">هذا الحساب لا يمتلك صلاحية الوصول إلى لوحة التحكم.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 md:px-8">
@@ -217,103 +210,24 @@ export default function AdminDashboard() {
 
 /* ───────────────────────── Overview ───────────────────────── */
 function PlatformOverview() {
-  const supabase = createClient(); // ✅ تعريف supabase
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [pendingItems, setPendingItems] = useState<PendingItems | null>(null);
-  const [revenueData, setRevenueData] = useState<number[]>([]);
-  const [loading, setLoading] = useState(true);
+  // بيانات وهمية مؤقتة (سيتم استبدالها بـ Neon لاحقاً)
+  const [stats] = useState<DashboardStats>({
+    totalStudents: 0,
+    totalTeachers: 0,
+    activeCourses: 0,
+    totalRevenue: 0,
+    revenueDelta: "0%",
+    studentsDelta: "0%",
+    teachersDelta: "0%",
+    coursesDelta: "0%",
+  });
 
-  useEffect(() => {
-    async function fetchOverviewData() {
-      setLoading(true);
-      try {
-        // باستخدام profiles بدلاً من users
-        const { count: studentsCount } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .eq('role', 'student');
-        
-        const { count: teachersCount } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true })
-          .eq('role', 'teacher');
-        
-        const { count: coursesCount } = await supabase
-          .from('courses')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'published');
-        
-        const { data: revenueData } = await supabase
-          .from('transactions')
-          .select('amount')
-          .eq('status', 'completed');
-        
-        const { data: lastMonthRevenue } = await supabase
-          .from('transactions')
-          .select('amount')
-          .eq('status', 'completed')
-          .gte('created_at', getLastMonthDate());
-
-        const totalRevenue = revenueData?.reduce((sum, t) => sum + t.amount, 0) || 0;
-        const lastMonthTotal = lastMonthRevenue?.reduce((sum, t) => sum + t.amount, 0) || 0;
-        const revenueDelta = lastMonthTotal ? ((totalRevenue - lastMonthTotal) / lastMonthTotal * 100).toFixed(1) : "0";
-
-        const { count: pendingTeachers } = await supabase
-          .from('teacher_applications')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'pending');
-        
-        const { count: pendingCourses } = await supabase
-          .from('courses')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'pending');
-        
-        const { count: pendingPayouts } = await supabase
-          .from('payouts')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'pending');
-        
-        const { count: reportedContent } = await supabase
-          .from('reports')
-          .select('*', { count: 'exact', head: true })
-          .eq('resolved', false);
-
-        setStats({
-          totalStudents: studentsCount || 0,
-          totalTeachers: teachersCount || 0,
-          activeCourses: coursesCount || 0,
-          totalRevenue: totalRevenue,
-          revenueDelta: `${revenueDelta}%`,
-          studentsDelta: "+12.4%",
-          teachersDelta: "+3.1%",
-          coursesDelta: "+8.7%",
-        });
-
-        setPendingItems({
-          teacher_applications: pendingTeachers || 0,
-          courses_pending: pendingCourses || 0,
-          payouts_pending: pendingPayouts || 0,
-          reported_content: reportedContent || 0,
-        });
-
-        const { data: trendData } = await supabase
-          .from('transactions')
-          .select('amount, created_at')
-          .eq('status', 'completed')
-          .gte('created_at', getDaysAgoDate(30));
-
-        const dailyRevenue = aggregateDailyRevenue(trendData || [], 30);
-        setRevenueData(dailyRevenue);
-      } catch (error) {
-        console.error("Error fetching overview data:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchOverviewData();
-  }, [supabase]);
-
-  if (loading) return <LoadingSpinner />;
+  const [pendingItems] = useState<PendingItems>({
+    teacher_applications: 0,
+    courses_pending: 0,
+    payouts_pending: 0,
+    reported_content: 0,
+  });
 
   const statCards = [
     { label: "Total Students", value: stats?.totalStudents.toLocaleString() || "0", delta: stats?.studentsDelta || "0%", icon: Users, accent: "from-emerald-500/20 to-emerald-500/5" },
@@ -368,7 +282,7 @@ function PlatformOverview() {
               <Download className="h-3.5 w-3.5" /> Export
             </button>
           </div>
-          <RevenueChart data={revenueData} />
+          <RevenueChart data={[]} />
         </div>
         <div className="rounded-3xl border bg-card p-6 shadow-elegant">
           <div className="text-xs font-semibold uppercase tracking-widest text-amber-600">Action Required</div>
@@ -401,6 +315,9 @@ function RevenueChart({ data }: { data: number[] }) {
   const max = Math.max(...data, 1);
   return (
     <div className="mt-6 flex h-44 items-end gap-2">
+      {data.length === 0 && (
+        <div className="w-full text-center text-muted-foreground text-sm">No data available</div>
+      )}
       {data.map((v, i) => (
         <div key={i} className="group relative flex-1">
           <div
@@ -418,49 +335,8 @@ function RevenueChart({ data }: { data: number[] }) {
 
 /* ───────────────────────── Teacher Verification ───────────────────────── */
 function TeacherVerification() {
-  const supabase = createClient();
-  const [applications, setApplications] = useState<TeacherApplication[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchApplications();
-  }, []);
-
-  async function fetchApplications() {
-    const { data, error } = await supabase
-      .from('teacher_applications')
-      .select('*')
-      .eq('status', 'pending')
-      .order('applied_at', { ascending: false });
-    if (!error && data) {
-      setApplications(data);
-    }
-    setLoading(false);
-  }
-
-  async function handleApprove(id: string) {
-    const { error } = await supabase
-      .from('teacher_applications')
-      .update({ status: 'approved', reviewed_at: new Date().toISOString() })
-      .eq('id', id);
-    if (!error) {
-      const app = applications.find(a => a.id === id);
-      if (app) {
-        await supabase.from('profiles').update({ role: 'teacher' }).eq('email', app.email);
-      }
-      fetchApplications();
-    }
-  }
-
-  async function handleReject(id: string) {
-    const { error } = await supabase
-      .from('teacher_applications')
-      .update({ status: 'rejected', reviewed_at: new Date().toISOString() })
-      .eq('id', id);
-    if (!error) fetchApplications();
-  }
-
-  if (loading) return <LoadingSpinner />;
+  // بيانات وهمية مؤقتة
+  const [applications] = useState<TeacherApplication[]>([]);
 
   return (
     <div className="space-y-4">
@@ -475,57 +351,8 @@ function TeacherVerification() {
           </button>
         </div>
       </div>
-      <div className="space-y-3">
-        {applications.map((t) => (
-          <div key={t.id} className="rounded-3xl border bg-card p-5 shadow-elegant transition-all hover:shadow-lg">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-4">
-                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-linear-to-r from-emerald-600 to-emerald-700 font-serif text-xl text-white">
-                  {t.full_name.charAt(0)} {/* ✅ use full_name */}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-serif text-lg">{t.full_name}</h3> {/* ✅ use full_name */}
-                    <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-800">
-                      {t.specialization}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {t.email} · {t.country} · {t.years_experience} yrs experience
-                  </div>
-                  <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Clock className="h-3 w-3" /> Applied {formatRelativeTime(t.applied_at)}
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button className="inline-flex items-center gap-1.5 rounded-full border bg-background px-4 py-2 text-xs font-medium hover:bg-accent">
-                  <FileText className="h-3.5 w-3.5" /> View CV
-                </button>
-                <button className="inline-flex items-center gap-1.5 rounded-full border bg-background px-4 py-2 text-xs font-medium hover:bg-accent">
-                  <Eye className="h-3.5 w-3.5" /> Profile
-                </button>
-                <button
-                  onClick={() => handleReject(t.id)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-500/20"
-                >
-                  <XCircle className="h-3.5 w-3.5" /> Reject
-                </button>
-                <button
-                  onClick={() => handleApprove(t.id)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-linear-to-r from-emerald-600 to-emerald-700 px-4 py-2 text-xs font-semibold text-white"
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Approve
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-        {applications.length === 0 && (
-          <div className="rounded-3xl border bg-card p-12 text-center text-muted-foreground">
-            No pending applications
-          </div>
-        )}
+      <div className="rounded-3xl border bg-card p-12 text-center text-muted-foreground">
+        No pending applications
       </div>
     </div>
   );
@@ -533,50 +360,8 @@ function TeacherVerification() {
 
 /* ───────────────────────── Course Moderation ───────────────────────── */
 function CourseModeration() {
-  const supabase = createClient();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchCourses();
-  }, []);
-
-  async function fetchCourses() {
-    const { data, error } = await supabase
-      .from('courses')
-      .select(`
-        *,
-        teacher:teacher_id (full_name)
-      `)
-      .eq('status', 'pending')
-      .order('submitted_at', { ascending: false });
-    if (!error && data) {
-      const formatted = data.map((c: any) => ({
-        ...c,
-        teacher_name: c.teacher?.full_name || 'Unknown'
-      }));
-      setCourses(formatted);
-    }
-    setLoading(false);
-  }
-
-  async function handlePublish(id: string) {
-    const { error } = await supabase
-      .from('courses')
-      .update({ status: 'published', published_at: new Date().toISOString() })
-      .eq('id', id);
-    if (!error) fetchCourses();
-  }
-
-  async function handleReject(id: string) {
-    const { error } = await supabase
-      .from('courses')
-      .update({ status: 'rejected' })
-      .eq('id', id);
-    if (!error) fetchCourses();
-  }
-
-  if (loading) return <LoadingSpinner />;
+  // بيانات وهمية مؤقتة
+  const [courses] = useState<Course[]>([]);
 
   return (
     <div className="space-y-4">
@@ -584,50 +369,8 @@ function CourseModeration() {
         <h2 className="font-serif text-2xl">Course Moderation Queue</h2>
         <p className="text-sm text-muted-foreground">{courses.length} courses awaiting review</p>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        {courses.map((c) => (
-          <div key={c.id} className="overflow-hidden rounded-3xl border bg-card shadow-elegant">
-            <div className="relative aspect-16/7 bg-linear-to-r from-emerald-600 to-emerald-700">
-              <div className="absolute right-3 top-3 rounded-full bg-background/90 px-3 py-1 text-xs font-bold text-primary backdrop-blur">
-                ${c.price}
-              </div>
-              <div className="absolute bottom-3 left-3 rounded-full bg-amber-500/90 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-900">
-                Level {c.level}
-              </div>
-            </div>
-            <div className="p-5">
-              <h3 className="font-serif text-lg leading-tight">{c.title}</h3>
-              <div className="mt-1 text-xs text-muted-foreground">
-                by {c.teacher_name} · {c.lessons_count} lessons
-              </div>
-              <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
-                <Clock className="h-3 w-3" /> Submitted {formatRelativeTime(c.submitted_at)}
-              </div>
-              <div className="mt-4 flex gap-2">
-                <button className="flex-1 rounded-full border bg-background py-2 text-xs font-medium hover:bg-accent">
-                  Preview
-                </button>
-                <button
-                  onClick={() => handleReject(c.id)}
-                  className="flex-1 rounded-full border border-red-500/30 bg-red-500/10 py-2 text-xs font-medium text-red-600 hover:bg-red-500/20"
-                >
-                  Reject
-                </button>
-                <button
-                  onClick={() => handlePublish(c.id)}
-                  className="flex-1 rounded-full bg-linear-to-r from-emerald-600 to-emerald-700 py-2 text-xs font-semibold text-white"
-                >
-                  Publish
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-        {courses.length === 0 && (
-          <div className="col-span-2 rounded-3xl border bg-card p-12 text-center text-muted-foreground">
-            No pending courses
-          </div>
-        )}
+      <div className="rounded-3xl border bg-card p-12 text-center text-muted-foreground">
+        No pending courses
       </div>
     </div>
   );
@@ -635,40 +378,14 @@ function CourseModeration() {
 
 /* ───────────────────────── User Management ───────────────────────── */
 function UserManagement() {
-  const supabase = createClient();
-  const [users, setUsers] = useState<User[]>([]);
+  // بيانات وهمية مؤقتة
+  const [users] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  async function fetchUsers() {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('joined', { ascending: false });
-    if (!error && data) {
-      setUsers(data);
-    }
-    setLoading(false);
-  }
-
-  async function handleUpdateStatus(userId: string, newStatus: "Active" | "Suspended") {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ status: newStatus })
-      .eq('id', userId);
-    if (!error) fetchUsers();
-  }
 
   const filteredUsers = users.filter(u =>
     u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  if (loading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-4">
@@ -691,7 +408,14 @@ function UserManagement() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground">
-              <tr><th className="px-5 py-3 text-left">User</th><th className="px-5 py-3 text-left">Role</th><th className="px-5 py-3 text-left">Plan</th><th className="px-5 py-3 text-left">Status</th><th className="px-5 py-3 text-left">Joined</th><th className="px-5 py-3 text-right">Actions</th></tr>
+              <tr>
+                <th className="px-5 py-3 text-left">User</th>
+                <th className="px-5 py-3 text-left">Role</th>
+                <th className="px-5 py-3 text-left">Plan</th>
+                <th className="px-5 py-3 text-left">Status</th>
+                <th className="px-5 py-3 text-left">Joined</th>
+                <th className="px-5 py-3 text-right">Actions</th>
+              </tr>
             </thead>
             <tbody>
               {filteredUsers.map((u) => (
@@ -714,21 +438,25 @@ function UserManagement() {
                   </td>
                   <td className="px-5 py-4 text-sm">{u.plan}</td>
                   <td className="px-5 py-4">
-                    <select
-                      value={u.status}
-                      onChange={(e) => handleUpdateStatus(u.id, e.target.value as "Active" | "Suspended")}
-                      className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer border-none bg-transparent", u.status === "Active" ? "text-emerald-600" : "text-red-600")}
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Suspended">Suspended</option>
-                    </select>
+                    <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", u.status === "Active" ? "text-emerald-600" : "text-red-600")}>
+                      {u.status}
+                    </span>
                   </td>
-                  <td className="px-5 py-4 text-xs text-muted-foreground">{new Date(u.joined).toLocaleDateString()}</td>
+                  <td className="px-5 py-4 text-xs text-muted-foreground">{u.joined}</td>
                   <td className="px-5 py-4 text-right">
-                    <button className="inline-grid h-8 w-8 place-items-center rounded-full hover:bg-accent"><MoreHorizontal className="h-4 w-4" /></button>
+                    <button className="inline-grid h-8 w-8 place-items-center rounded-full hover:bg-accent">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
                   </td>
                 </tr>
               ))}
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-5 py-8 text-center text-muted-foreground">
+                    No users found
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -739,84 +467,10 @@ function UserManagement() {
 
 /* ───────────────────────── Financial Center ───────────────────────── */
 function FinancialCenter() {
-  const supabase = createClient();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [payouts, setPayouts] = useState<Payout[]>([]);
-  const [stats, setStats] = useState({ grossRevenue: 0, pendingPayouts: 0, platformNet: 0 });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchFinancialData();
-  }, []);
-
-  async function fetchFinancialData() {
-    try {
-      // جلب أحدث المعاملات
-      const { data: txData } = await supabase
-        .from('transactions')
-        .select('id, amount, type, created_at, user_id, course_id')
-        .eq('status', 'completed')
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      let formattedTx: Transaction[] = [];
-      if (txData && txData.length) {
-        const userIds = txData.map(t => t.user_id).filter(Boolean);
-        const { data: usersData } = await supabase.from('profiles').select('id, full_name').in('id', userIds);
-        const userMap = new Map(usersData?.map(u => [u.id, u.full_name]));
-        const courseIds = txData.map(t => t.course_id).filter(Boolean);
-        let courseMap = new Map();
-        if (courseIds.length) {
-          const { data: coursesData } = await supabase.from('courses').select('id, title').in('id', courseIds);
-          coursesData?.forEach(c => courseMap.set(c.id, c.title));
-        }
-        formattedTx = txData.map(t => ({
-          id: t.id,
-          user_name: userMap.get(t.user_id) || 'Unknown',
-          item_name: courseMap.get(t.course_id) || t.type || 'Transaction',
-          amount: t.amount,
-          type: t.type || 'general',
-          created_at: t.created_at,
-        }));
-      }
-      setTransactions(formattedTx);
-
-      // جلب المدفوعات المعلقة
-      const { data: payoutData } = await supabase
-        .from('payouts')
-        .select('id, amount, teacher_id, commission_rate')
-        .eq('status', 'pending');
-
-      let formattedPayouts: Payout[] = [];
-      if (payoutData && payoutData.length) {
-        const teacherIds = [...new Set(payoutData.map(p => p.teacher_id))].filter(Boolean);
-        const { data: teachers } = await supabase.from('profiles').select('id, full_name').in('id', teacherIds);
-        const teacherMap = new Map(teachers?.map(t => [t.id, t.full_name]));
-        const map = new Map<string, Payout>();
-        for (const p of payoutData) {
-          const existing = map.get(p.teacher_id);
-          if (existing) existing.pending_amount += p.amount;
-          else map.set(p.teacher_id, { teacher_id: p.teacher_id, teacher_name: teacherMap.get(p.teacher_id) || 'Unknown', students_count: 0, commission_rate: p.commission_rate, pending_amount: p.amount });
-        }
-        formattedPayouts = Array.from(map.values());
-      }
-      setPayouts(formattedPayouts);
-
-      // الإحصائيات الإجمالية
-      const { data: allTx } = await supabase.from('transactions').select('amount').eq('status', 'completed');
-      const { data: pendingPayoutsData } = await supabase.from('payouts').select('amount').eq('status', 'pending');
-      const grossRevenue = allTx?.reduce((s, t) => s + t.amount, 0) || 0;
-      const pendingPayoutsTotal = pendingPayoutsData?.reduce((s, p) => s + p.amount, 0) || 0;
-      setStats({ grossRevenue, pendingPayouts: pendingPayoutsTotal, platformNet: grossRevenue * 0.3 });
-    } catch (err) { console.error(err); } finally { setLoading(false); }
-  }
-
-  async function handleProcessAllPayouts() {
-    const { error } = await supabase.from('payouts').update({ status: 'processed', processed_at: new Date().toISOString() }).eq('status', 'pending');
-    if (!error) fetchFinancialData();
-  }
-
-  if (loading) return <LoadingSpinner />;
+  // بيانات وهمية مؤقتة
+  const [transactions] = useState<Transaction[]>([]);
+  const [payouts] = useState<Payout[]>([]);
+  const [stats] = useState({ grossRevenue: 0, pendingPayouts: 0, platformNet: 0 });
 
   const cards = [
     { label: "Gross Revenue", value: `$${stats.grossRevenue.toLocaleString()}`, sub: "All time", icon: DollarSign },
@@ -831,27 +485,18 @@ function FinancialCenter() {
           const Icon = c.icon;
           return (
             <div key={c.label} className="rounded-3xl border bg-card p-6 shadow-elegant">
-              <div className="flex items-center justify-between"><div className="text-xs uppercase tracking-wider text-muted-foreground">{c.label}</div><Icon className="h-4 w-4 text-amber-500" /></div>
-              <div className="mt-3 font-serif text-3xl">{c.value}</div><div className="text-xs text-muted-foreground">{c.sub}</div>
+              <div className="flex items-center justify-between">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">{c.label}</div>
+                <Icon className="h-4 w-4 text-amber-500" />
+              </div>
+              <div className="mt-3 font-serif text-3xl">{c.value}</div>
+              <div className="text-xs text-muted-foreground">{c.sub}</div>
             </div>
           );
         })}
       </div>
-      <div className="grid gap-6 lg:grid-cols-5">
-        <div className="rounded-3xl border bg-card p-6 shadow-elegant lg:col-span-3">
-          <div className="flex items-center justify-between"><h3 className="font-serif text-xl">Recent Transactions</h3><button className="text-xs text-primary hover:underline">View all</button></div>
-          <ul className="mt-4 divide-y">
-            {transactions.map(t => <li key={t.id} className="flex items-center justify-between py-3"><div><div className="text-sm font-medium">{t.user_name}</div><div className="text-xs text-muted-foreground">{t.item_name} · {new Date(t.created_at).toLocaleDateString()}</div></div><div className="text-right"><div className="font-serif text-lg">${t.amount}</div><div className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">{t.type}</div></div></li>)}
-            {!transactions.length && <li className="py-8 text-center text-muted-foreground">No transactions found</li>}
-          </ul>
-        </div>
-        <div className="rounded-3xl border bg-card p-6 shadow-elegant lg:col-span-2">
-          <div className="flex items-center justify-between"><h3 className="font-serif text-xl">Pending Payouts</h3><button onClick={handleProcessAllPayouts} className="rounded-full bg-linear-to-r from-emerald-600 to-emerald-700 px-3 py-1 text-xs font-semibold text-white">Process All</button></div>
-          <ul className="mt-4 space-y-3">
-            {payouts.map(p => <li key={p.teacher_id} className="rounded-2xl border bg-background p-4"><div className="flex items-center justify-between"><div><div className="text-sm font-medium">{p.teacher_name}</div><div className="text-xs text-muted-foreground">{p.commission_rate}% commission</div></div><div className="font-serif text-lg text-primary">${p.pending_amount.toLocaleString()}</div></div></li>)}
-            {!payouts.length && <li className="py-8 text-center text-muted-foreground">No pending payouts</li>}
-          </ul>
-        </div>
+      <div className="rounded-3xl border bg-card p-12 text-center text-muted-foreground">
+        No transactions or payouts yet
       </div>
     </div>
   );
@@ -859,8 +504,6 @@ function FinancialCenter() {
 
 /* ───────────────────────── AI Configuration ───────────────────────── */
 function AIConfiguration() {
-  const supabase = createClient();
-  const [isSaving, setIsSaving] = useState(false);
   const [config, setConfig] = useState({
     systemPrompt: "You are Nūr, a refined and knowledgeable assistant...",
     model: "gpt-5.2",
@@ -870,41 +513,129 @@ function AIConfiguration() {
     citeSources: true,
   });
 
-  useEffect(() => { fetchConfig(); }, []);
-  async function fetchConfig() {
-    const { data } = await supabase.from('ai_config').select('*').single();
-    if (data) setConfig({ systemPrompt: data.system_prompt, model: data.model, temperature: data.temperature, maxTokens: data.max_tokens, rtlResponses: data.rtl_responses, citeSources: data.cite_sources });
-  }
-  async function handleSave() {
-    setIsSaving(true);
-    const { error } = await supabase.from('ai_config').upsert({ system_prompt: config.systemPrompt, model: config.model, temperature: config.temperature, max_tokens: config.maxTokens, rtl_responses: config.rtlResponses, cite_sources: config.citeSources, updated_at: new Date().toISOString() });
-    if (!error) alert("Saved!"); else alert("Error");
-    setIsSaving(false);
-  }
-
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border bg-card p-6 shadow-elegant">
-        <div className="flex items-center gap-3"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-linear-to-r from-emerald-600 to-emerald-700"><Sparkles className="h-5 w-5 text-white" /></div><div><div className="text-xs font-semibold uppercase tracking-widest text-amber-600">Nūr Assistant</div><h2 className="font-serif text-2xl">AI Configuration</h2></div></div>
+        <div className="flex items-center gap-3">
+          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-linear-to-r from-emerald-600 to-emerald-700">
+            <Sparkles className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-amber-600">Nūr Assistant</div>
+            <h2 className="font-serif text-2xl">AI Configuration</h2>
+          </div>
+        </div>
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          <div><label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">System Prompt</label><textarea rows={8} value={config.systemPrompt} onChange={(e) => setConfig({...config, systemPrompt: e.target.value})} className="w-full rounded-2xl border bg-background p-4 text-sm outline-none focus:ring-2 focus:ring-primary/30" /></div>
+          <div>
+            <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">System Prompt</label>
+            <textarea
+              rows={8}
+              value={config.systemPrompt}
+              onChange={(e) => setConfig({ ...config, systemPrompt: e.target.value })}
+              className="w-full rounded-2xl border bg-background p-4 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
           <div className="space-y-4">
-            <div><label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Model</label><select value={config.model} onChange={(e) => setConfig({...config, model: e.target.value})} className="w-full rounded-2xl border bg-background px-4 py-2.5 text-sm"><option>gpt-5.2 (Recommended)</option><option>gpt-5.2-mini</option><option>claude-sonnet-4.5</option></select></div>
-            <div className="grid grid-cols-2 gap-3"><div><label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Temperature</label><input type="number" value={config.temperature} onChange={(e) => setConfig({...config, temperature: parseFloat(e.target.value)})} step={0.1} min={0} max={2} className="w-full rounded-2xl border bg-background px-4 py-2.5 text-sm" /></div><div><label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Max tokens</label><input type="number" value={config.maxTokens} onChange={(e) => setConfig({...config, maxTokens: parseInt(e.target.value)})} step={128} className="w-full rounded-2xl border bg-background px-4 py-2.5 text-sm" /></div></div>
+            <div>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Model</label>
+              <select
+                value={config.model}
+                onChange={(e) => setConfig({ ...config, model: e.target.value })}
+                className="w-full rounded-2xl border bg-background px-4 py-2.5 text-sm"
+              >
+                <option>gpt-5.2 (Recommended)</option>
+                <option>gpt-5.2-mini</option>
+                <option>claude-sonnet-4.5</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Temperature</label>
+                <input
+                  type="number"
+                  value={config.temperature}
+                  onChange={(e) => setConfig({ ...config, temperature: parseFloat(e.target.value) })}
+                  step={0.1}
+                  min={0}
+                  max={2}
+                  className="w-full rounded-2xl border bg-background px-4 py-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">Max tokens</label>
+                <input
+                  type="number"
+                  value={config.maxTokens}
+                  onChange={(e) => setConfig({ ...config, maxTokens: parseInt(e.target.value) })}
+                  step={128}
+                  className="w-full rounded-2xl border bg-background px-4 py-2.5 text-sm"
+                />
+              </div>
+            </div>
             <div className="rounded-2xl border bg-background p-4">
-              <div className="flex items-center justify-between"><div className="text-sm font-medium">RTL Arabic responses</div><button onClick={() => setConfig({...config, rtlResponses: !config.rtlResponses})} className={cn("h-6 w-11 rounded-full p-0.5 transition-colors", config.rtlResponses ? "bg-emerald-600" : "bg-gray-300")}><div className={cn("h-5 w-5 rounded-full bg-white transition-transform", config.rtlResponses && "translate-x-5")} /></button></div>
-              <div className="mt-3 flex items-center justify-between"><div className="text-sm font-medium">Cite source materials</div><button onClick={() => setConfig({...config, citeSources: !config.citeSources})} className={cn("h-6 w-11 rounded-full p-0.5 transition-colors", config.citeSources ? "bg-emerald-600" : "bg-gray-300")}><div className={cn("h-5 w-5 rounded-full bg-white transition-transform", config.citeSources && "translate-x-5")} /></button></div>
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-medium">RTL Arabic responses</div>
+                <button
+                  onClick={() => setConfig({ ...config, rtlResponses: !config.rtlResponses })}
+                  className={cn("h-6 w-11 rounded-full p-0.5 transition-colors", config.rtlResponses ? "bg-emerald-600" : "bg-gray-300")}
+                >
+                  <div className={cn("h-5 w-5 rounded-full bg-white transition-transform", config.rtlResponses && "translate-x-5")} />
+                </button>
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <div className="text-sm font-medium">Cite source materials</div>
+                <button
+                  onClick={() => setConfig({ ...config, citeSources: !config.citeSources })}
+                  className={cn("h-6 w-11 rounded-full p-0.5 transition-colors", config.citeSources ? "bg-emerald-600" : "bg-gray-300")}
+                >
+                  <div className={cn("h-5 w-5 rounded-full bg-white transition-transform", config.citeSources && "translate-x-5")} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
       <div className="rounded-3xl border bg-card p-6 shadow-elegant">
-        <div className="flex items-center justify-between"><div><h3 className="font-serif text-xl">Knowledge Base</h3><p className="text-sm text-muted-foreground">Documents Nūr can reference when answering</p></div><button className="inline-flex items-center gap-2 rounded-full border bg-background px-4 py-2 text-sm hover:bg-accent"><Settings2 className="h-4 w-4" /> Manage</button></div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-serif text-xl">Knowledge Base</h3>
+            <p className="text-sm text-muted-foreground">Documents Nūr can reference when answering</p>
+          </div>
+          <button className="inline-flex items-center gap-2 rounded-full border bg-background px-4 py-2 text-sm hover:bg-accent">
+            <Settings2 className="h-4 w-4" /> Manage
+          </button>
+        </div>
         <ul className="mt-4 grid gap-3 md:grid-cols-2">
-          {[{name:"Academy Curriculum Guide.pdf",size:"2.4 MB",indexed:true},{name:"Pricing & Subscriptions.md",size:"18 KB",indexed:true},{name:"Teacher Handbook 2026.pdf",size:"5.1 MB",indexed:true},{name:"FAQ — Common Questions.md",size:"32 KB",indexed:false}].map(doc => <li key={doc.name} className="flex items-center justify-between rounded-2xl border bg-background px-4 py-3"><div className="flex items-center gap-3"><FileText className="h-4 w-4 text-amber-500" /><div><div className="text-sm font-medium">{doc.name}</div><div className="text-xs text-muted-foreground">{doc.size}</div></div></div><span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-medium", doc.indexed ? "bg-emerald-500/15 text-emerald-600" : "bg-muted text-muted-foreground")}>{doc.indexed ? "Indexed" : "Pending"}</span></li>)}
+          {[
+            { name: "Academy Curriculum Guide.pdf", size: "2.4 MB", indexed: true },
+            { name: "Pricing & Subscriptions.md", size: "18 KB", indexed: true },
+            { name: "Teacher Handbook 2026.pdf", size: "5.1 MB", indexed: true },
+            { name: "FAQ — Common Questions.md", size: "32 KB", indexed: false },
+          ].map((doc) => (
+            <li key={doc.name} className="flex items-center justify-between rounded-2xl border bg-background px-4 py-3">
+              <div className="flex items-center gap-3">
+                <FileText className="h-4 w-4 text-amber-500" />
+                <div>
+                  <div className="text-sm font-medium">{doc.name}</div>
+                  <div className="text-xs text-muted-foreground">{doc.size}</div>
+                </div>
+              </div>
+              <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-medium", doc.indexed ? "bg-emerald-500/15 text-emerald-600" : "bg-muted text-muted-foreground")}>
+                {doc.indexed ? "Indexed" : "Pending"}
+              </span>
+            </li>
+          ))}
         </ul>
       </div>
-      <div className="flex justify-end gap-2"><button className="rounded-full border bg-background px-5 py-2.5 text-sm hover:bg-accent">Discard</button><button onClick={handleSave} disabled={isSaving} className="inline-flex items-center gap-2 rounded-full bg-linear-to-r from-emerald-600 to-emerald-700 px-6 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{isSaving ? "Saving..." : "Save Configuration"}</button></div>
+      <div className="flex justify-end gap-2">
+        <button className="rounded-full border bg-background px-5 py-2.5 text-sm hover:bg-accent">Discard</button>
+        <button
+          onClick={() => alert("Saved!")}
+          className="inline-flex items-center gap-2 rounded-full bg-linear-to-r from-emerald-600 to-emerald-700 px-6 py-2.5 text-sm font-semibold text-white"
+        >
+          <Save className="h-4 w-4" /> Save Configuration
+        </button>
+      </div>
     </div>
   );
 }

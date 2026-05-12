@@ -7,57 +7,64 @@ import {
   User, Globe2, Languages, Phone, Send, Share2, FileText,
   BookOpen, MapPin, Upload, IdCard, Loader2,
 } from "lucide-react";
+import { useAuth } from "@/lib/firebase/AuthProvider";
 import { AvatarCard } from "./AvatarCard";
 import { Section } from "./Section";
 import { Field, Input, Select, Textarea } from "./Field";
 import { MultiInput } from "./MultiInput";
 import { SaveButton } from "./SaveButton";
 import { SocialLinks, type SocialLink } from "./SocialLinks";
-import { createClient } from "@/lib/supabase/client";
 
-type State = {
-  fullName: string; email: string; gender: string;
-  nationality: string; residence: string;
-  nativeLanguage: string; languages: string[];
-  whatsapp: string; telegram: string;
-  socials: SocialLink[]; bio: string; cv: string | null; avatar: string | null;
-};
+interface TeacherProfileState {
+  fullName: string;
+  email: string;
+  gender: string;
+  nationality: string;
+  residence: string;
+  nativeLanguage: string;
+  languages: string[];
+  whatsapp: string;
+  telegram: string;
+  socials: SocialLink[];
+  bio: string;
+  cv: string | null;
+  avatar: string | null;
+}
 
-const required: (keyof State)[] = [
+const required: (keyof TeacherProfileState)[] = [
   "nationality", "residence", "nativeLanguage", "whatsapp", "telegram",
 ];
 
 export function TeacherProfile() {
-  const supabase = createClient();
-  const [s, setS] = React.useState<State | null>(null);
-  const [errors, setErrors] = React.useState<Partial<Record<keyof State, string>>>({});
+  const { user, isLoading: authLoading } = useAuth();
+  const [s, setS] = React.useState<TeacherProfileState | null>(null);
+  const [errors, setErrors] = React.useState<Partial<Record<keyof TeacherProfileState, string>>>({});
   const [save, setSave] = React.useState<"idle" | "loading" | "success">("idle");
   const cvRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    if (authLoading) return;
+    if (user) {
+      const name = user.displayName || user.email?.split("@")[0] || "";
       setS({
-        fullName: data?.full_name || user.email || "",
+        fullName: name,
         email: user.email || "",
-        gender: data?.gender || "",
-        nationality: data?.nationality || "",
-        residence: data?.residence || "",
-        nativeLanguage: data?.native_language || "Arabic",
-        languages: data?.languages || ["Arabic", "English"],
-        whatsapp: data?.whatsapp || "",
-        telegram: data?.telegram || "",
-        socials: data?.socials || [],
-        bio: data?.bio || "",
-        cv: data?.cv_url || null,
-        avatar: data?.avatar_url || null,
+        gender: "",
+        nationality: "",
+        residence: "",
+        nativeLanguage: "Arabic",
+        languages: ["Arabic", "English"],
+        whatsapp: "",
+        telegram: "",
+        socials: [],
+        bio: "",
+        cv: null,
+        avatar: user.photoURL || null,
       });
-    })();
-  }, [supabase]);
+    }
+  }, [user, authLoading]);
 
-  const set = React.useCallback(<K extends keyof State>(k: K, v: State[K]) => {
+  const set = React.useCallback(<K extends keyof TeacherProfileState>(k: K, v: TeacherProfileState[K]) => {
     setS((p) => p ? { ...p, [k]: v } : null);
   }, []);
 
@@ -68,34 +75,22 @@ export function TeacherProfile() {
   }, [s]);
 
   const submit = React.useCallback(async () => {
+    if (!s) return;
     const e: typeof errors = {};
-    required.forEach((k) => { if (!String(s?.[k] ?? "").trim()) e[k] = "Required field"; });
-    if (s && s.languages.length === 0) e.languages = "Add at least one language";
+    required.forEach((k) => { if (!String(s[k] ?? "").trim()) e[k] = "Required field"; });
+    if (s.languages.length === 0) e.languages = "Add at least one language";
     setErrors(e);
     if (Object.keys(e).length > 0) { toast.error("Please complete required fields"); return; }
     setSave("loading");
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !s) return;
-    await supabase.from("profiles").update({
-      gender: s.gender,
-      nationality: s.nationality,
-      residence: s.residence,
-      native_language: s.nativeLanguage,
-      languages: s.languages,
-      whatsapp: s.whatsapp,
-      telegram: s.telegram,
-      socials: s.socials,
-      bio: s.bio,
-      cv_url: s.cv,
-      avatar_url: s.avatar,
-    }).eq("id", user.id);
-    setSave("success");
-    toast.success("Profile saved successfully");
-    setTimeout(() => setSave("idle"), 1600);
-  }, [supabase, s]);
+    // مؤقتاً: سيتم استبداله بطلب API إلى Neon لاحقاً
+    setTimeout(() => {
+      setSave("success");
+      toast.success("Profile saved successfully");
+      setTimeout(() => setSave("idle"), 1600);
+    }, 900);
+  }, [s]);
 
-  // تم نقل هذا الفحص إلى ما بعد كل الخطافات
-  if (!s) {
+  if (authLoading || !s) {
     return (
       <div className="flex justify-center py-20">
         <Loader2 className="animate-spin text-gold" size={32} />
@@ -106,11 +101,23 @@ export function TeacherProfile() {
   return (
     <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
       <AvatarCard
-        name={s.fullName} email={s.email} role="Teacher" completion={completion}
-        avatar={s.avatar} onAvatar={(url) => set("avatar", url)}
-        stats={[{ label: "Languages", value: String(s.languages.length) }, { label: "Sections", value: "5" }]}
+        name={s.fullName}
+        email={s.email}
+        role="Teacher"
+        completion={completion}
+        avatar={s.avatar}
+        onAvatar={(url) => set("avatar", url)}
+        stats={[
+          { label: "Languages", value: String(s.languages.length) },
+          { label: "Sections", value: "5" },
+        ]}
       />
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+        className="space-y-6"
+      >
         <header className="space-y-2">
           <p className="text-xs uppercase tracking-[0.3em] text-gold">Profile</p>
           <h1 className="font-serif text-4xl font-semibold text-foreground sm:text-5xl">

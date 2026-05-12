@@ -4,50 +4,59 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { User, Globe2, Languages, Phone, MessageCircle, Mail, Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/firebase/AuthProvider";
 import { AvatarCard } from "./AvatarCard";
 import { Section } from "./Section";
 import { Field, Input, Select } from "./Field";
 import { MultiInput } from "./MultiInput";
 import { SaveButton } from "./SaveButton";
-import { createClient } from "@/lib/supabase/client";
 
-type State = {
-  fullName: string; email: string; avatar: string | null;
-  gender: string; nationality: string; age: string;
-  nativeLanguage: string; otherLanguages: string[]; residence: string;
-  whatsapp: string; telegram: string; facebook: string; instagram: string;
-};
+interface ProfileState {
+  fullName: string;
+  email: string;
+  avatar: string | null;
+  gender: string;
+  nationality: string;
+  age: string;
+  nativeLanguage: string;
+  otherLanguages: string[];
+  residence: string;
+  whatsapp: string;
+  telegram: string;
+  facebook: string;
+  instagram: string;
+}
 
 export function StudentProfile() {
-  const supabase = createClient();
-  const [s, setS] = React.useState<State | null>(null);
-  const [errors, setErrors] = React.useState<Partial<Record<keyof State, string>>>({});
+  const { user, isLoading: authLoading } = useAuth();
+  const [s, setS] = React.useState<ProfileState | null>(null);
+  const [errors, setErrors] = React.useState<Partial<Record<keyof ProfileState, string>>>({});
   const [save, setSave] = React.useState<"idle" | "loading" | "success">("idle");
 
+  // إعداد البيانات الأولية من Firebase Auth
   React.useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    if (authLoading) return;
+    if (user) {
+      const name = user.displayName || user.email?.split("@")[0] || "";
       setS({
-        fullName: data?.full_name || user.email || "",
+        fullName: name,
         email: user.email || "",
-        avatar: data?.avatar_url || null,
-        gender: data?.gender || "",
-        nationality: data?.nationality || "",
-        age: data?.age || "",
-        nativeLanguage: data?.native_language || "",
-        otherLanguages: data?.other_languages || [],
-        residence: data?.residence || "",
-        whatsapp: data?.whatsapp || "",
-        telegram: data?.telegram || "",
-        facebook: data?.facebook || "",
-        instagram: data?.instagram || "",
+        avatar: user.photoURL || null,
+        gender: "",
+        nationality: "",
+        age: "",
+        nativeLanguage: "",
+        otherLanguages: [],
+        residence: "",
+        whatsapp: "",
+        telegram: "",
+        facebook: "",
+        instagram: "",
       });
-    })();
-  }, [supabase]);
+    }
+  }, [user, authLoading]);
 
-  const set = React.useCallback(<K extends keyof State>(k: K, v: State[K]) => {
+  const set = React.useCallback(<K extends keyof ProfileState>(k: K, v: ProfileState[K]) => {
     setS((p) => p ? { ...p, [k]: v } : null);
   }, []);
 
@@ -58,33 +67,24 @@ export function StudentProfile() {
   }, [s]);
 
   const submit = React.useCallback(async () => {
+    if (!s) return;
     const e: typeof errors = {};
-    if (!s?.nativeLanguage.trim()) e.nativeLanguage = "Required field";
+    if (!s.nativeLanguage.trim()) e.nativeLanguage = "Required field";
     setErrors(e);
-    if (Object.keys(e).length) { toast.error("Please complete required fields"); return; }
+    if (Object.keys(e).length) {
+      toast.error("Please complete required fields");
+      return;
+    }
     setSave("loading");
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !s) return;
-    await supabase.from("profiles").update({
-      gender: s.gender,
-      nationality: s.nationality,
-      age: s.age,
-      native_language: s.nativeLanguage,
-      other_languages: s.otherLanguages,
-      residence: s.residence,
-      whatsapp: s.whatsapp,
-      telegram: s.telegram,
-      facebook: s.facebook,
-      instagram: s.instagram,
-      avatar_url: s.avatar,
-    }).eq("id", user.id);
-    setSave("success");
-    toast.success("Profile saved");
-    setTimeout(() => setSave("idle"), 1500);
-  }, [supabase, s]);
+    // مؤقتاً: سيتم استبداله بطلب API إلى Neon لاحقاً
+    setTimeout(() => {
+      setSave("success");
+      toast.success("Profile saved");
+      setTimeout(() => setSave("idle"), 1500);
+    }, 800);
+  }, [s]);
 
-  // تم نقل هذا الفحص إلى ما بعد كل الخطافات
-  if (!s) {
+  if (authLoading || !s) {
     return (
       <div className="flex justify-center py-20">
         <Loader2 className="animate-spin text-gold" size={32} />
@@ -95,11 +95,23 @@ export function StudentProfile() {
   return (
     <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
       <AvatarCard
-        name={s.fullName} email={s.email} role="Student" completion={completion}
-        avatar={s.avatar} onAvatar={(u) => set("avatar", u)}
-        stats={[{ label: "Languages", value: String(1 + s.otherLanguages.length) }, { label: "Level", value: "B1" }]}
+        name={s.fullName}
+        email={s.email}
+        role="Student"
+        completion={completion}
+        avatar={s.avatar}
+        onAvatar={(u) => set("avatar", u)}
+        stats={[
+          { label: "Languages", value: String(1 + s.otherLanguages.length) },
+          { label: "Level", value: "B1" },
+        ]}
       />
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+        className="space-y-6"
+      >
         <header className="space-y-2">
           <p className="text-xs uppercase tracking-[0.3em] text-gold">Profile</p>
           <h1 className="font-serif text-4xl font-semibold text-foreground sm:text-5xl">

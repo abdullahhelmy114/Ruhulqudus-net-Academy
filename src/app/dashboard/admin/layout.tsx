@@ -1,21 +1,31 @@
-export const runtime = 'edge';
+"use client";
 
-import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { useAuth } from "@/lib/firebase/AuthProvider";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
-export default async function AdminLayout({
+export default function AdminLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
 
-  if (!user) {
-    redirect('/login?message=يرجى تسجيل الدخول للوصول إلى لوحة التحكم')
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
   }
 
-  if (user.email !== 'abdullahhelmy114@gmail.com') {
+  if (!user) {
+    router.push("/login");
+    return null;
+  }
+
+  if (user.email !== "abdullahhelmy114@gmail.com") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
@@ -25,9 +35,8 @@ export default async function AdminLayout({
           </p>
         </div>
       </div>
-    )
+    );
   }
 
-  // كل شيء تمام → عرض المحتوى
-  return <>{children}</>
+  return <>{children}</>;
 }

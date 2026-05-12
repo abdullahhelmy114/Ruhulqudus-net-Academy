@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { Moon, Sun, BookOpen, User, LayoutDashboard, Settings, LogOut, ChevronDown } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Moon, Sun, BookOpen, User, LayoutDashboard, LogOut, ChevronDown } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
-import { useEffect, useState, useRef } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useState, useRef, useEffect } from "react";
+import { useAuth } from "@/lib/firebase/AuthProvider";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase/client";
 
 const links = [
   { to: "/", label: "Home" },
@@ -17,31 +19,11 @@ const links = [
 export function Navbar() {
   const { theme, toggle } = useTheme();
   const pathname = usePathname();
-  const router = useRouter();
-  const supabase = createClient();
-
-  const [user, setUser] = useState<any>(null);
-  const [role, setRole] = useState<string | null>(null);
+  const { user, isLoading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // جلب بيانات المستخدم الحالي ودوره
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role, full_name")
-          .eq("id", user.id)
-          .single();
-        setRole(profile?.role || "student");
-      }
-    };
-    getUser();
-
-    // إغلاق القائمة عند النقر خارجها
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
@@ -49,37 +31,17 @@ export function Navbar() {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [supabase]);
+  }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setRole(null);
+    await signOut(auth);
     setMenuOpen(false);
-    router.push("/");
   };
 
-  // رابط Dashboard حسب الدور
-  const dashboardLink =
-    role === "admin"
-      ? "/dashboard/admin"
-      : role === "teacher"
-      ? "/dashboard/teacher"
-      : "/dashboard/student";
+  const dashboardLink = "/dashboard/student"; // سيتم توجيهه لاحقاً حسب الدور
+  const profileLink = "/profile/student";
 
-  const profileLink =
-    role === "admin"
-      ? "/profile/admin"
-      : role === "teacher"
-        ? "/profile/teacher"
-        : "/profile/student";
-
-  // استخراج الحرف الأول من اسم المستخدم (أو البريد)
-  const initial = user?.user_metadata?.full_name
-    ? user.user_metadata.full_name.charAt(0).toUpperCase()
-    : user?.email
-    ? user.email.charAt(0).toUpperCase()
-    : "U";
+  const initial = user?.email ? user.email.charAt(0).toUpperCase() : "U";
 
   return (
     <header className="sticky top-0 z-40 glass border-b">
@@ -89,12 +51,8 @@ export function Navbar() {
             <BookOpen className="h-5 w-5 text-primary-foreground" />
           </div>
           <div className="leading-tight">
-            <div className="font-serif text-lg font-semibold text-foreground">
-              Ruhulqudus
-            </div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-gold">
-              Academy
-            </div>
+            <div className="font-serif text-lg font-semibold text-foreground">Ruhulqudus</div>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-gold">Academy</div>
           </div>
         </Link>
 
@@ -114,7 +72,6 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
-          {/* زر الوضع الليلي/النهاري */}
           <button
             onClick={toggle}
             aria-label="Toggle theme"
@@ -123,8 +80,9 @@ export function Navbar() {
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
 
-          {user ? (
-            /* المستخدم مسجل الدخول: أيقونة البروفايل */
+          {isLoading ? (
+            <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
+          ) : user ? (
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
@@ -136,25 +94,14 @@ export function Navbar() {
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </button>
 
-              {/* القائمة المنسدلة */}
               {menuOpen && (
                 <div className="absolute right-0 mt-2 w-56 rounded-xl border bg-card p-2 shadow-elegant">
-                  <div className="px-3 py-2 text-xs text-muted-foreground">
-                    {user.email}
-                  </div>
+                  <div className="px-3 py-2 text-xs text-muted-foreground">{user.email}</div>
                   <hr className="my-1" />
-                  <Link
-                    href={dashboardLink}
-                    onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-accent"
-                  >
+                  <Link href={dashboardLink} onClick={() => setMenuOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-accent">
                     <LayoutDashboard className="h-4 w-4" /> Dashboard
                   </Link>
-                  <Link
-                    href={profileLink}
-                    onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-accent"
-                  >
+                  <Link href={profileLink} onClick={() => setMenuOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-accent">
                     <User className="h-4 w-4" /> Profile
                   </Link>
                   <button
@@ -167,7 +114,6 @@ export function Navbar() {
               )}
             </div>
           ) : (
-            /* لم يسجل الدخول: أزرار Sign in / Sign up */
             <>
               <Link
                 href="/login"

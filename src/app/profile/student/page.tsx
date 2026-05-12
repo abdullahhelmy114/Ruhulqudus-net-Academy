@@ -1,42 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/firebase/AuthProvider";
 import { StudentProfile } from "@/components/profile/StudentProfile";
+import { Loader2 } from "lucide-react";
 
 export default function StudentProfilePage() {
+  const { user, isLoading } = useAuth();
   const router = useRouter();
-  const supabase = createClient();
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
+    if (!isLoading && !user) {
+      router.push("/login");
+    }
+  }, [user, isLoading, router]);
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
+      </div>
+    );
+  }
 
-      if (profile?.role === "student" || profile?.role === "admin") {
-        setLoading(false);
-        return;
-      }
-
-      // إعادة التوجيه إلى البروفايل المناسب
-      if (profile?.role === "teacher") router.push("/profile/teacher");
-      else router.push("/login");
-    })();
-  }, [supabase, router]);
-
-  if (loading) return (
-    <div className="flex min-h-[50vh] items-center justify-center">
-      <div className="shimmer h-8 w-48 rounded-full" />
-    </div>
-  );
+  if (!user) return null;
 
   return <StudentProfile />;
 }

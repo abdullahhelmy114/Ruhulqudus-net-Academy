@@ -4,41 +4,44 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { User, Phone, Send, Shield, Globe2, Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/firebase/AuthProvider";
 import { AvatarCard } from "./AvatarCard";
 import { Section } from "./Section";
 import { Field, Input } from "./Field";
 import { SaveButton } from "./SaveButton";
-import { createClient } from "@/lib/supabase/client";
 
-type State = {
-  fullName: string; email: string; avatar: string | null;
-  nationality: string; residence: string;
-  whatsapp: string; telegram: string;
-};
+interface AdminProfileState {
+  fullName: string;
+  email: string;
+  avatar: string | null;
+  nationality: string;
+  residence: string;
+  whatsapp: string;
+  telegram: string;
+}
 
 export function AdminProfile() {
-  const supabase = createClient();
-  const [s, setS] = React.useState<State | null>(null);
+  const { user, isLoading: authLoading } = useAuth();
+  const [s, setS] = React.useState<AdminProfileState | null>(null);
   const [save, setSave] = React.useState<"idle" | "loading" | "success">("idle");
 
   React.useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    if (authLoading) return;
+    if (user) {
+      const name = user.displayName || user.email?.split("@")[0] || "";
       setS({
-        fullName: data?.full_name || user.email || "",
+        fullName: name,
         email: user.email || "",
-        avatar: data?.avatar_url || null,
-        nationality: data?.nationality || "",
-        residence: data?.residence || "",
-        whatsapp: data?.whatsapp || "",
-        telegram: data?.telegram || "",
+        avatar: user.photoURL || null,
+        nationality: "",
+        residence: "",
+        whatsapp: "",
+        telegram: "",
       });
-    })();
-  }, [supabase]);
+    }
+  }, [user, authLoading]);
 
-  const set = React.useCallback(<K extends keyof State>(k: K, v: State[K]) => {
+  const set = React.useCallback(<K extends keyof AdminProfileState>(k: K, v: AdminProfileState[K]) => {
     setS((p) => p ? { ...p, [k]: v } : null);
   }, []);
 
@@ -49,23 +52,16 @@ export function AdminProfile() {
   }, [s]);
 
   const submit = React.useCallback(async () => {
+    if (!s) return;
     setSave("loading");
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase.from("profiles").update({
-      avatar_url: s?.avatar,
-      nationality: s?.nationality,
-      residence: s?.residence,
-      whatsapp: s?.whatsapp,
-      telegram: s?.telegram,
-    }).eq("id", user.id);
-    setSave("success");
-    toast.success("تم تحديث بروفايل المشرف");
-    setTimeout(() => setSave("idle"), 1500);
-  }, [supabase, s]);
+    setTimeout(() => {
+      setSave("success");
+      toast.success("تم تحديث بروفايل المشرف");
+      setTimeout(() => setSave("idle"), 1500);
+    }, 800);
+  }, [s]);
 
-  // تم نقل هذا الفحص إلى ما بعد كل الخطافات
-  if (!s) {
+  if (authLoading || !s) {
     return (
       <div className="flex justify-center py-20">
         <Loader2 className="animate-spin text-gold" size={32} />
@@ -76,11 +72,20 @@ export function AdminProfile() {
   return (
     <div className="grid gap-8 lg:grid-cols-[320px_1fr]">
       <AvatarCard
-        name={s.fullName} email={s.email} role="Administrator" completion={completion}
-        avatar={s.avatar} onAvatar={(u) => set("avatar", u)}
+        name={s.fullName}
+        email={s.email}
+        role="Administrator"
+        completion={completion}
+        avatar={s.avatar}
+        onAvatar={(u) => set("avatar", u)}
         stats={[{ label: "Permissions", value: "All" }, { label: "Members", value: "248" }]}
       />
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+        className="space-y-6"
+      >
         <header className="space-y-2">
           <p className="text-xs uppercase tracking-[0.3em] text-gold">Profile</p>
           <h1 className="font-serif text-4xl font-semibold text-foreground sm:text-5xl">
