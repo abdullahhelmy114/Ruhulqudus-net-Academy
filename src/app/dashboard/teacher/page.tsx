@@ -13,7 +13,6 @@ export default function TeacherDashboard() {
   const [price, setPrice] = useState(49);
   const [isPublishing, setIsPublishing] = useState(false);
 
-  // حماية المسار: لو مش مسجل دخول أو مش معلم/أدمن، نرجعه
   useEffect(() => {
     if (!isLoading) {
       if (!user) {
@@ -32,13 +31,10 @@ export default function TeacherDashboard() {
     );
   }
 
-  // لو وصلنا هنا معناه مستخدم صحيح (معلم أو أدمن)
-
   const fullName = user.displayName || user.email?.split("@")[0] || "معلم";
   const initial = fullName.charAt(0).toUpperCase();
 
   const handlePublish = async () => {
-    // **التحقق من اكتمال البروفايل قبل النشر**
     const isProfileComplete =
       typeof window !== "undefined" && localStorage.getItem("profileComplete") === "true";
     if (!isProfileComplete) {
@@ -58,6 +54,7 @@ export default function TeacherDashboard() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 md:px-8 bg-background min-h-screen animate-in fade-in duration-700">
+      {/* ... (باقي واجهة المعلم بدون تغيير) ... */}
       <div className="flex flex-col items-start justify-between gap-6 rounded-4xl border border-border bg-card p-8 shadow-elegant md:flex-row md:items-center">
         <div className="flex items-center gap-5">
           <div className="grid h-20 w-20 flex-none place-items-center rounded-full bg-linear-to-r from-emerald-600 to-emerald-700 font-serif text-3xl text-white ring-4 ring-amber-500/20 shadow-lg">
@@ -82,6 +79,7 @@ export default function TeacherDashboard() {
       </div>
 
       <div className="relative overflow-hidden rounded-[2.5rem] border border-border bg-card p-8 shadow-elegant">
+        {/* ... قسم إنشاء الكورس ... */}
         <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-500/5 blur-3xl" />
         <div className="relative z-10">
           <div className="text-[10px] font-bold uppercase tracking-widest text-amber-600">Authoring Studio</div>
@@ -103,9 +101,7 @@ export default function TeacherDashboard() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Level
-                </label>
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Level</label>
                 <select
                   value={level}
                   onChange={(e) => setLevel(e.target.value)}
@@ -117,9 +113,7 @@ export default function TeacherDashboard() {
                 </select>
               </div>
               <div>
-                <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Price (USD)
-                </label>
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Price (USD)</label>
                 <input
                   type="number"
                   value={price}
@@ -130,12 +124,8 @@ export default function TeacherDashboard() {
             </div>
             <div className="group cursor-pointer rounded-2xl border-2 border-dashed border-amber-500/30 bg-amber-500/5 p-6 text-center transition-all hover:border-amber-500/50 hover:bg-amber-500/10">
               <Upload className="mx-auto h-6 w-6 text-amber-500 transition-transform group-hover:scale-110" />
-              <div className="mt-3 text-sm font-semibold text-foreground">
-                Drop curriculum files here
-              </div>
-              <div className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                PDF, MP4, or DOCX
-              </div>
+              <div className="mt-3 text-sm font-semibold text-foreground">Drop curriculum files here</div>
+              <div className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">PDF, MP4, or DOCX</div>
             </div>
             <button
               onClick={handlePublish}

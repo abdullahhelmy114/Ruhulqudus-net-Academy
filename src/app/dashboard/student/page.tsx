@@ -10,18 +10,13 @@ export default function StudentDashboard() {
   const { user, isLoading, role } = useAuth();
   const router = useRouter();
 
+  // حماية بسيطة: إذا لم يسجل دخول، ارجعه لصفحة الدخول
   useEffect(() => {
     if (!isLoading) {
       if (!user) {
         router.push("/login");
-      } else if (role === "admin" || role === "student") {
-        // تأكد من اكتمال البروفايل
-        const isProfileComplete = typeof window !== "undefined" && localStorage.getItem("profileComplete") === "true";
-        if (!isProfileComplete && user.email !== "abdullahhelmy114@gmail.com") {
-          router.push("/profile/student");
-        }
-      } else {
-        // ليس طالباً ولا أدمن
+      } else if (role !== "student" && role !== "admin") {
+        // لو دخل معلم أو دور غير مصرح، اطرده برا
         router.push("/login");
       }
     }
