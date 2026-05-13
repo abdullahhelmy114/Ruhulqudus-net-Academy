@@ -35,6 +35,8 @@ const required: (keyof TeacherProfileState)[] = [
   "nationality", "residence", "nativeLanguage", "whatsapp", "telegram",
 ];
 
+const STORAGE_KEY = "teacherProfileData";
+
 export function TeacherProfile() {
   const { user, isLoading: authLoading } = useAuth();
   const [s, setS] = React.useState<TeacherProfileState | null>(null);
@@ -45,6 +47,14 @@ export function TeacherProfile() {
   React.useEffect(() => {
     if (authLoading) return;
     if (user) {
+      const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setS(parsed);
+          return;
+        } catch {}
+      }
       const name = user.displayName || user.email?.split("@")[0] || "";
       setS({
         fullName: name,
@@ -83,10 +93,16 @@ export function TeacherProfile() {
     if (Object.keys(e).length > 0) { toast.error("Please complete required fields"); return; }
     setSave("loading");
     setTimeout(() => {
-      setSave("success");
-      toast.success("Profile saved successfully");
-      localStorage.setItem("profileComplete", "true");
-      setTimeout(() => setSave("idle"), 1600);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+        localStorage.setItem("profileComplete", "true");
+        setSave("success");
+        toast.success("Profile saved successfully");
+        setTimeout(() => setSave("idle"), 1600);
+      } catch {
+        setSave("idle");
+        toast.error("فشل في حفظ البيانات");
+      }
     }, 900);
   }, [s]);
 
@@ -107,7 +123,10 @@ export function TeacherProfile() {
         completion={completion}
         avatar={s.avatar}
         onAvatar={(url) => set("avatar", url)}
-        stats={[{ label: "Languages", value: String(s.languages.length) }, { label: "Sections", value: "5" }]}
+        stats={[
+          { label: "Languages", value: String(s.languages.length) },
+          { label: "Sections", value: "5" },
+        ]}
       />
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="space-y-6">
         <header className="space-y-2">

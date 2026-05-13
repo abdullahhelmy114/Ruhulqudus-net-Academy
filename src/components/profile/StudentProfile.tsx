@@ -27,15 +27,29 @@ interface ProfileState {
   instagram: string;
 }
 
+// مفتاح التخزين المحلي
+const STORAGE_KEY = "studentProfileData";
+
 export function StudentProfile() {
   const { user, isLoading: authLoading } = useAuth();
   const [s, setS] = React.useState<ProfileState | null>(null);
   const [errors, setErrors] = React.useState<Partial<Record<keyof ProfileState, string>>>({});
   const [save, setSave] = React.useState<"idle" | "loading" | "success">("idle");
 
+  // تحميل البيانات الأولية (من localStorage أو من Firebase Auth)
   React.useEffect(() => {
     if (authLoading) return;
     if (user) {
+      // محاولة استرجاع بيانات محفوظة
+      const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setS(parsed);
+          return;
+        } catch {}
+      }
+      // لا توجد بيانات محفوظة -> حالة افتراضية
       const name = user.displayName || user.email?.split("@")[0] || "";
       setS({
         fullName: name,
@@ -67,6 +81,7 @@ export function StudentProfile() {
 
   const submit = React.useCallback(async () => {
     if (!s) return;
+    // التحقق من صحة البيانات
     const e: typeof errors = {};
     if (!s.nativeLanguage.trim()) e.nativeLanguage = "Required field";
     setErrors(e);
@@ -75,11 +90,18 @@ export function StudentProfile() {
       return;
     }
     setSave("loading");
+    // حفظ في localStorage
     setTimeout(() => {
-      setSave("success");
-      toast.success("Profile saved");
-      localStorage.setItem("profileComplete", "true");
-      setTimeout(() => setSave("idle"), 1500);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+        localStorage.setItem("profileComplete", "true");
+        setSave("success");
+        toast.success("Profile saved");
+        setTimeout(() => setSave("idle"), 1500);
+      } catch {
+        setSave("idle");
+        toast.error("فشل في حفظ البيانات");
+      }
     }, 800);
   }, [s]);
 
@@ -100,9 +122,17 @@ export function StudentProfile() {
         completion={completion}
         avatar={s.avatar}
         onAvatar={(u) => set("avatar", u)}
-        stats={[{ label: "Languages", value: String(1 + s.otherLanguages.length) }, { label: "Level", value: "B1" }]}
+        stats={[
+          { label: "Languages", value: String(1 + s.otherLanguages.length) },
+          { label: "Level", value: "B1" },
+        ]}
       />
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+        className="space-y-6"
+      >
         <header className="space-y-2">
           <p className="text-xs uppercase tracking-[0.3em] text-gold">Profile</p>
           <h1 className="font-serif text-4xl font-semibold text-foreground sm:text-5xl">

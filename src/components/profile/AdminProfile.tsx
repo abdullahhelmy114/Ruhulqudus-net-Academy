@@ -20,6 +20,8 @@ interface AdminProfileState {
   telegram: string;
 }
 
+const STORAGE_KEY = "adminProfileData";
+
 export function AdminProfile() {
   const { user, isLoading: authLoading } = useAuth();
   const [s, setS] = React.useState<AdminProfileState | null>(null);
@@ -28,6 +30,14 @@ export function AdminProfile() {
   React.useEffect(() => {
     if (authLoading) return;
     if (user) {
+      const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setS(parsed);
+          return;
+        } catch {}
+      }
       const name = user.displayName || user.email?.split("@")[0] || "";
       setS({
         fullName: name,
@@ -55,10 +65,16 @@ export function AdminProfile() {
     if (!s) return;
     setSave("loading");
     setTimeout(() => {
-      setSave("success");
-      toast.success("تم تحديث بروفايل المشرف");
-      localStorage.setItem("profileComplete", "true");
-      setTimeout(() => setSave("idle"), 1500);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+        localStorage.setItem("profileComplete", "true");
+        setSave("success");
+        toast.success("تم تحديث بروفايل المشرف");
+        setTimeout(() => setSave("idle"), 1500);
+      } catch {
+        setSave("idle");
+        toast.error("فشل في حفظ البيانات");
+      }
     }, 800);
   }, [s]);
 
