@@ -13,16 +13,12 @@ export default function TeacherDashboard() {
   const [price, setPrice] = useState(49);
   const [isPublishing, setIsPublishing] = useState(false);
 
+  // حماية المسار: لو مش مسجل دخول أو مش معلم/أدمن، نرجعه
   useEffect(() => {
     if (!isLoading) {
       if (!user) {
         router.push("/login");
-      } else if (role === "admin" || role === "teacher") {
-        const isProfileComplete = typeof window !== "undefined" && localStorage.getItem("profileComplete") === "true";
-        if (!isProfileComplete && user.email !== "abdullahhelmy114@gmail.com") {
-          router.push("/profile/teacher");
-        }
-      } else {
+      } else if (role !== "teacher" && role !== "admin") {
         router.push("/login");
       }
     }
@@ -36,10 +32,19 @@ export default function TeacherDashboard() {
     );
   }
 
+  // لو وصلنا هنا معناه مستخدم صحيح (معلم أو أدمن)
+
   const fullName = user.displayName || user.email?.split("@")[0] || "معلم";
   const initial = fullName.charAt(0).toUpperCase();
 
   const handlePublish = async () => {
+    // **التحقق من اكتمال البروفايل قبل النشر**
+    const isProfileComplete =
+      typeof window !== "undefined" && localStorage.getItem("profileComplete") === "true";
+    if (!isProfileComplete) {
+      alert("يجب إكمال ملفك الشخصي أولاً قبل نشر كورس.");
+      return;
+    }
     if (!title.trim()) return;
     setIsPublishing(true);
     setTimeout(() => {
@@ -61,7 +66,9 @@ export default function TeacherDashboard() {
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-600">Instructor Portal</div>
             <h1 className="mt-1 font-serif text-3xl text-foreground md:text-4xl">{fullName}</h1>
-            <p className="mt-1 text-sm italic text-muted-foreground">"Your students await your wisdom today."</p>
+            <p className="mt-1 text-sm italic text-muted-foreground">
+              "Your students await your wisdom today."
+            </p>
           </div>
         </div>
         <div className="flex w-full gap-3 md:w-auto">
@@ -73,15 +80,20 @@ export default function TeacherDashboard() {
           </button>
         </div>
       </div>
+
       <div className="relative overflow-hidden rounded-[2.5rem] border border-border bg-card p-8 shadow-elegant">
         <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-500/5 blur-3xl" />
         <div className="relative z-10">
           <div className="text-[10px] font-bold uppercase tracking-widest text-amber-600">Authoring Studio</div>
           <h3 className="mt-2 font-serif text-2xl text-foreground">Create a New Course</h3>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Craft your curriculum and share it with the world.</p>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            Craft your curriculum and share it with the world.
+          </p>
           <div className="mt-8 space-y-5">
             <div>
-              <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Course Title</label>
+              <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Course Title
+              </label>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -91,7 +103,9 @@ export default function TeacherDashboard() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Level</label>
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Level
+                </label>
                 <select
                   value={level}
                   onChange={(e) => setLevel(e.target.value)}
@@ -103,7 +117,9 @@ export default function TeacherDashboard() {
                 </select>
               </div>
               <div>
-                <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Price (USD)</label>
+                <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Price (USD)
+                </label>
                 <input
                   type="number"
                   value={price}
@@ -114,8 +130,12 @@ export default function TeacherDashboard() {
             </div>
             <div className="group cursor-pointer rounded-2xl border-2 border-dashed border-amber-500/30 bg-amber-500/5 p-6 text-center transition-all hover:border-amber-500/50 hover:bg-amber-500/10">
               <Upload className="mx-auto h-6 w-6 text-amber-500 transition-transform group-hover:scale-110" />
-              <div className="mt-3 text-sm font-semibold text-foreground">Drop curriculum files here</div>
-              <div className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">PDF, MP4, or DOCX</div>
+              <div className="mt-3 text-sm font-semibold text-foreground">
+                Drop curriculum files here
+              </div>
+              <div className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                PDF, MP4, or DOCX
+              </div>
             </div>
             <button
               onClick={handlePublish}

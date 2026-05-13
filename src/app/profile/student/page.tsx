@@ -7,16 +7,21 @@ import { StudentProfile } from "@/components/profile/StudentProfile";
 import { Loader2 } from "lucide-react";
 
 export default function StudentProfilePage() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, role } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push("/login");
+    if (!isLoading) {
+      if (!user) {
+        router.push("/login");
+      } else if (role !== "student" && role !== "admin") {
+        // لو دخل معلم، نحوله إلى بروفايل المعلم
+        router.push("/profile/teacher");
+      }
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, role, router]);
 
-  if (isLoading) {
+  if (isLoading || !user) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-gold" />
@@ -24,7 +29,7 @@ export default function StudentProfilePage() {
     );
   }
 
-  if (!user) return null;
+  if (role !== "student" && role !== "admin") return null;
 
   return <StudentProfile />;
 }

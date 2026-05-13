@@ -1,28 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { AdminProfile } from "@/components/profile/AdminProfile";
+import { Loader2 } from "lucide-react";
 
 export default function AdminProfilePage() {
-  const router = useRouter();
   const { user, isLoading } = useAuth();
-  const [ready, setReady] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    if (isLoading) return;
-    if (!user) { router.push("/login"); return; }
-
-    // السماح فقط للمستخدمين المسجلين (سيتم إضافة فحص الأدمن لاحقاً)
-    setReady(true);
+    if (!isLoading) {
+      if (!user) {
+        router.push("/login");
+      } else if (user.email !== "abdullahhelmy114@gmail.com") {
+        // ليس أدمن؟ نرجعه إلى صفحته المناسبة
+        const storedRole = localStorage.getItem("userRole");
+        if (storedRole === "teacher") {
+          router.push("/profile/teacher");
+        } else {
+          router.push("/profile/student");
+        }
+      }
+    }
   }, [user, isLoading, router]);
 
-  if (!ready) return (
-    <div className="flex min-h-[50vh] items-center justify-center">
-      <div className="shimmer h-8 w-48 rounded-full" />
-    </div>
-  );
+  if (isLoading || !user) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
+      </div>
+    );
+  }
 
+  // إذا وصل إلى هنا، فهو الأدمن
   return <AdminProfile />;
 }
