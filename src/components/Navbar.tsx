@@ -19,7 +19,7 @@ const links = [
 export function Navbar() {
   const { theme, toggle } = useTheme();
   const pathname = usePathname();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, role } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -38,8 +38,19 @@ export function Navbar() {
     setMenuOpen(false);
   };
 
-  const dashboardLink = "/dashboard/student"; // سيتم توجيهه لاحقاً حسب الدور
-  const profileLink = "/profile/student";
+  const dashboardLink =
+    role === "admin"
+      ? "/dashboard/admin"
+      : role === "teacher"
+      ? "/dashboard/teacher"
+      : "/dashboard/student";
+
+  const profileLink =
+    role === "admin"
+      ? "/profile/admin"
+      : role === "teacher"
+      ? "/profile/teacher"
+      : "/profile/student";
 
   const initial = user?.email ? user.email.charAt(0).toUpperCase() : "U";
 

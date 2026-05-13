@@ -33,7 +33,6 @@ export function StudentProfile() {
   const [errors, setErrors] = React.useState<Partial<Record<keyof ProfileState, string>>>({});
   const [save, setSave] = React.useState<"idle" | "loading" | "success">("idle");
 
-  // إعداد البيانات الأولية من Firebase Auth
   React.useEffect(() => {
     if (authLoading) return;
     if (user) {
@@ -76,10 +75,10 @@ export function StudentProfile() {
       return;
     }
     setSave("loading");
-    // مؤقتاً: سيتم استبداله بطلب API إلى Neon لاحقاً
     setTimeout(() => {
       setSave("success");
       toast.success("Profile saved");
+      localStorage.setItem("profileComplete", "true");
       setTimeout(() => setSave("idle"), 1500);
     }, 800);
   }, [s]);
@@ -101,17 +100,9 @@ export function StudentProfile() {
         completion={completion}
         avatar={s.avatar}
         onAvatar={(u) => set("avatar", u)}
-        stats={[
-          { label: "Languages", value: String(1 + s.otherLanguages.length) },
-          { label: "Level", value: "B1" },
-        ]}
+        stats={[{ label: "Languages", value: String(1 + s.otherLanguages.length) }, { label: "Level", value: "B1" }]}
       />
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.1 }}
-        className="space-y-6"
-      >
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="space-y-6">
         <header className="space-y-2">
           <p className="text-xs uppercase tracking-[0.3em] text-gold">Profile</p>
           <h1 className="font-serif text-4xl font-semibold text-foreground sm:text-5xl">

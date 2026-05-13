@@ -57,6 +57,7 @@ export function AdminProfile() {
     setTimeout(() => {
       setSave("success");
       toast.success("تم تحديث بروفايل المشرف");
+      localStorage.setItem("profileComplete", "true");
       setTimeout(() => setSave("idle"), 1500);
     }, 800);
   }, [s]);
@@ -80,12 +81,7 @@ export function AdminProfile() {
         onAvatar={(u) => set("avatar", u)}
         stats={[{ label: "Permissions", value: "All" }, { label: "Members", value: "248" }]}
       />
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.1 }}
-        className="space-y-6"
-      >
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="space-y-6">
         <header className="space-y-2">
           <p className="text-xs uppercase tracking-[0.3em] text-gold">Profile</p>
           <h1 className="font-serif text-4xl font-semibold text-foreground sm:text-5xl">

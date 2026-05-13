@@ -82,10 +82,10 @@ export function TeacherProfile() {
     setErrors(e);
     if (Object.keys(e).length > 0) { toast.error("Please complete required fields"); return; }
     setSave("loading");
-    // مؤقتاً: سيتم استبداله بطلب API إلى Neon لاحقاً
     setTimeout(() => {
       setSave("success");
       toast.success("Profile saved successfully");
+      localStorage.setItem("profileComplete", "true");
       setTimeout(() => setSave("idle"), 1600);
     }, 900);
   }, [s]);
@@ -107,17 +107,9 @@ export function TeacherProfile() {
         completion={completion}
         avatar={s.avatar}
         onAvatar={(url) => set("avatar", url)}
-        stats={[
-          { label: "Languages", value: String(s.languages.length) },
-          { label: "Sections", value: "5" },
-        ]}
+        stats={[{ label: "Languages", value: String(s.languages.length) }, { label: "Sections", value: "5" }]}
       />
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.1 }}
-        className="space-y-6"
-      >
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="space-y-6">
         <header className="space-y-2">
           <p className="text-xs uppercase tracking-[0.3em] text-gold">Profile</p>
           <h1 className="font-serif text-4xl font-semibold text-foreground sm:text-5xl">

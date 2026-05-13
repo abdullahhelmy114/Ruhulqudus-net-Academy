@@ -1,13 +1,33 @@
 "use client";
 
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import Link from "next/link";
 import { Award, Copy, GraduationCap, Trophy, ChevronRight, BookOpen, Loader2 } from "lucide-react";
 
 export default function StudentDashboard() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, role } = useAuth();
+  const router = useRouter();
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isLoading) {
+      if (!user) {
+        router.push("/login");
+      } else if (role === "admin" || role === "student") {
+        // تأكد من اكتمال البروفايل
+        const isProfileComplete = typeof window !== "undefined" && localStorage.getItem("profileComplete") === "true";
+        if (!isProfileComplete && user.email !== "abdullahhelmy114@gmail.com") {
+          router.push("/profile/student");
+        }
+      } else {
+        // ليس طالباً ولا أدمن
+        router.push("/login");
+      }
+    }
+  }, [user, isLoading, role, router]);
+
+  if (isLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -15,22 +35,7 @@ export default function StudentDashboard() {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-center">
-          <h1 className="text-2xl font-serif text-foreground mb-2">الرجاء تسجيل الدخول</h1>
-          <p className="text-muted-foreground">يجب تسجيل الدخول لعرض لوحة التحكم</p>
-          <Link href="/login" className="mt-4 inline-block text-amber-600 hover:underline">
-            تسجيل الدخول →
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   const firstName = user.email?.split("@")[0] || "طالب";
-  const email = user.email || "";
 
   return (
     <div className="mx-auto max-w-7xl animate-in fade-in duration-700 space-y-8 bg-background px-4 py-10 md:px-8 min-h-screen">
@@ -44,14 +49,11 @@ export default function StudentDashboard() {
             Continue where you left off — every word is a victory.
           </p>
         </div>
-
         <div className="flex items-center gap-3 rounded-full border border-amber-500/20 bg-background/50 px-5 py-2.5 text-sm font-semibold text-foreground shadow-sm backdrop-blur-md">
           <Trophy className="h-5 w-5 animate-bounce text-amber-500" />
           0-day streak
         </div>
       </div>
-
-      {/* Learning Hub Grid */}
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="space-y-10 lg:col-span-2">
           <section>
@@ -66,7 +68,6 @@ export default function StudentDashboard() {
             </div>
           </section>
         </div>
-
         <div className="space-y-8">
           <section>
             <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.25em] text-amber-600">Your milestones</div>
@@ -76,7 +77,6 @@ export default function StudentDashboard() {
               <p>No completed courses yet.</p>
             </div>
           </section>
-
           <div className="group relative overflow-hidden rounded-4xl border-2 border-amber-500/30 bg-card p-8 shadow-elegant">
             <GraduationCap className="mb-4 h-10 w-10 text-amber-500 transition-transform group-hover:scale-110" />
             <h3 className="font-serif text-2xl text-foreground">Placement Test</h3>
@@ -87,7 +87,6 @@ export default function StudentDashboard() {
               Launch Assessment
             </button>
           </div>
-
           <div className="rounded-4xl border border-border bg-card p-8 shadow-elegant">
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-600">Referral Center</div>
             <h3 className="mt-2 font-serif text-xl text-foreground">Share the Academy</h3>
@@ -109,7 +108,6 @@ export default function StudentDashboard() {
               </div>
             </div>
           </div>
-
           <Link
             href="/marketplace"
             className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-amber-500/40 bg-amber-500/5 p-4 text-sm font-bold text-amber-600 transition-all hover:bg-amber-500/10 shadow-sm"

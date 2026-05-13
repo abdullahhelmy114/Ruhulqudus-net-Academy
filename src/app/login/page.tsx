@@ -15,16 +15,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // دالة التوجيه بعد تسجيل الدخول
+  // دالة التوجيه بعد تسجيل الدخول (إلى البروفايل بدلاً من الداشبورد)
   const redirectAfterLogin = (userEmail: string) => {
     if (userEmail === "abdullahhelmy114@gmail.com") {
-      router.push("/dashboard/admin");
+      router.push("/profile/admin");
     } else {
       const storedRole = localStorage.getItem("userRole");
       if (storedRole === "teacher") {
-        router.push("/dashboard/teacher");
+        router.push("/profile/teacher");
       } else {
-        router.push("/dashboard/student");
+        router.push("/profile/student");
       }
     }
   };

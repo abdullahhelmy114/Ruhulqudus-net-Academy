@@ -1,31 +1,37 @@
 "use client";
 
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Plus, Upload, Loader2 } from "lucide-react";
 
 export default function TeacherDashboard() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, role } = useAuth();
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [level, setLevel] = useState("B1");
   const [price, setPrice] = useState(49);
   const [isPublishing, setIsPublishing] = useState(false);
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isLoading) {
+      if (!user) {
+        router.push("/login");
+      } else if (role === "admin" || role === "teacher") {
+        const isProfileComplete = typeof window !== "undefined" && localStorage.getItem("profileComplete") === "true";
+        if (!isProfileComplete && user.email !== "abdullahhelmy114@gmail.com") {
+          router.push("/profile/teacher");
+        }
+      } else {
+        router.push("/login");
+      }
+    }
+  }, [user, isLoading, role, router]);
+
+  if (isLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-center">
-          <h1 className="text-2xl font-serif text-foreground mb-2">الرجاء تسجيل الدخول</h1>
-          <p className="text-muted-foreground">يجب تسجيل الدخول لعرض لوحة التحكم</p>
-        </div>
       </div>
     );
   }
@@ -36,7 +42,6 @@ export default function TeacherDashboard() {
   const handlePublish = async () => {
     if (!title.trim()) return;
     setIsPublishing(true);
-    // لاحقاً: استدعاء API/Neon لنشر الكورس
     setTimeout(() => {
       alert("Course submitted for moderation!");
       setTitle("");
@@ -68,7 +73,6 @@ export default function TeacherDashboard() {
           </button>
         </div>
       </div>
-
       <div className="relative overflow-hidden rounded-[2.5rem] border border-border bg-card p-8 shadow-elegant">
         <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-500/5 blur-3xl" />
         <div className="relative z-10">
