@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { CalendarPicker } from "@/components/dashboard/CalendarPicker";
 import { TimeSlotPicker } from "@/components/dashboard/TimeSlotPicker";
@@ -11,7 +11,8 @@ import { motion } from "framer-motion";
 export default function NewLessonPage() {
   const { user, isLoading, role } = useAuth();
   const router = useRouter();
-  const params = useParams<{ courseId: string }>();
+  const searchParams = useSearchParams();
+  const courseId = searchParams.get("courseId"); // قراءة courseId من الرابط
 
   const [title, setTitle] = useState("");
   const [type, setType] = useState<"zoom" | "recorded">("recorded");
@@ -25,9 +26,13 @@ export default function NewLessonPage() {
   if (role !== "teacher" && role !== "admin") { router.push("/"); return null; }
 
   const today = new Date();
-  const minDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000); // بعد أسبوع
+  const minDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   const handleSubmit = async () => {
+    if (!courseId) {
+      setError("الرجاء تحديد الكورس أولاً عبر الرابط ?courseId=...");
+      return;
+    }
     if (!title.trim()) { setError("Lesson title is required"); return; }
     if (type === "zoom") {
       if (!selectedDate || !selectedTime) { setError("Please select date and time for live session"); return; }
@@ -35,12 +40,11 @@ export default function NewLessonPage() {
     setSaving(true);
     setError("");
 
-    // استدعاء API
     const res = await fetch("/api/lessons", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        courseId: params.courseId,
+        courseId,
         title,
         type,
         scheduledAt: type === "zoom" ? new Date(`${selectedDate!.toDateString()} ${selectedTime}`).toISOString() : null,
@@ -55,7 +59,7 @@ export default function NewLessonPage() {
       return;
     }
 
-    router.push(`/dashboard/teacher/courses/${params.courseId}`);
+    router.push(`/dashboard/teacher/courses/${courseId}`);
   };
 
   return (
@@ -66,7 +70,12 @@ export default function NewLessonPage() {
           <p className="text-sm text-muted-foreground mt-1">Add content to your course</p>
         </div>
 
-        {/* عنوان الدرس */}
+        {!courseId && (
+          <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
+            يرجى فتح هذه الصفحة من داخل الكورس المحدد. مثال: /dashboard/teacher/courses/new?courseId=123
+          </div>
+        )}
+
         <div>
           <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lesson Title</label>
           <input
@@ -77,14 +86,13 @@ export default function NewLessonPage() {
           />
         </div>
 
-        {/* مبدل النوع */}
         <div>
           <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lesson Type</label>
           <div className="mt-2 grid grid-cols-2 gap-3">
             <button
               onClick={() => setType("recorded")}
               className={`flex items-center gap-2 justify-center rounded-2xl border p-3 text-sm font-medium transition ${
-                type === "recorded" ? "bg-emerald text-white border-emerald" : "bg-card hover:bg-accent"
+                type === "recorded" ? "bg-emerald-600 text-white border-emerald-600" : "bg-card hover:bg-accent"
               }`}
             >
               <FileText size={16} /> Recorded
@@ -92,7 +100,7 @@ export default function NewLessonPage() {
             <button
               onClick={() => setType("zoom")}
               className={`flex items-center gap-2 justify-center rounded-2xl border p-3 text-sm font-medium transition ${
-                type === "zoom" ? "bg-emerald text-white border-emerald" : "bg-card hover:bg-accent"
+                type === "zoom" ? "bg-emerald-600 text-white border-emerald-600" : "bg-card hover:bg-accent"
               }`}
             >
               <Video size={16} /> Live Zoom
@@ -100,7 +108,6 @@ export default function NewLessonPage() {
           </div>
         </div>
 
-        {/* محدد التاريخ والوقت (فقط إذا Zoom) */}
         {type === "zoom" && (
           <div className="space-y-4">
             <div>
@@ -122,7 +129,7 @@ export default function NewLessonPage() {
 
         <button
           onClick={handleSubmit}
-          disabled={saving}
+          disabled={saving || !courseId}
           className="w-full rounded-full bg-linear-to-r from-emerald-600 to-emerald-700 py-3 text-sm font-semibold text-white disabled:opacity-50"
         >
           {saving ? <Loader2 size={16} className="animate-spin mx-auto" /> : "Submit for Review"}
