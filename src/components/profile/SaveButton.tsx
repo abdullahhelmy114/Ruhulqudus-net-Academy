@@ -33,7 +33,7 @@ export function SaveButton({
         "disabled:opacity-90",
       )}
     >
-      <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-gold/40 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+      <span className="absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-gold/40 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
       {state === "loading" ? <Loader2 size={16} className="animate-spin" /> :
         state === "success" ? <Check size={16} /> : <Save size={16} />}
       <span className="relative">

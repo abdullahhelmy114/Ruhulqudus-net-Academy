@@ -30,7 +30,7 @@ export function AvatarCard({
       className="glass-strong arabesque sticky top-24 flex flex-col items-center gap-6 rounded-3xl p-8 text-center"
     >
       <div className="relative">
-        <div className="absolute -inset-2 rounded-full bg-gradient-to-tr from-gold via-emerald to-gold opacity-70 blur-md" />
+        <div className="absolute -inset-2 rounded-full bg-linear-to-tr from-gold via-emerald to-gold opacity-70 blur-md" />
         <div className="relative h-32 w-32 overflow-hidden rounded-full border-2 border-gold/40 bg-muted">
           {avatar ? (
             <img src={avatar} alt={name} className="h-full w-full object-cover" />
