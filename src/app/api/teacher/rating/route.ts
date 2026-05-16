@@ -16,7 +16,7 @@ export async function GET(request: Request) {
       WHERE l.teacher_uid = ${uid}
     `;
 
-    // عدد الدروس المكتملة بواسطة الطلاب (الدروس التي حضرها أي طالب)
+    // عدد الدروس المكتملة بواسطة الطلاب
     const [countResult] = await sql`
       SELECT COUNT(*) AS completed_lessons
       FROM lesson_completions lc
