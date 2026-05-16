@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     `;
     if (!profile) return NextResponse.json({ error: 'Teacher not found' }, { status: 404 });
 
-    // إحصائيات مؤقتة بدون أعمدة غير موجودة
+    // لا نستخدم teacher_uid في profiles
     const [stats] = await sql`
       SELECT
         (SELECT COUNT(*) FROM courses WHERE teacher_uid = ${uid} AND status = 'published') AS active_courses,
@@ -31,8 +31,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       fullName: profile.full_name || 'Teacher',
       initial: (profile.full_name || 'T').charAt(0).toUpperCase(),
-      certificationProgress: 0, // لا يوجد عمود بعد
-      students: 0,              // لا يوجد عمود teacher_uid في profiles
+      certificationProgress: 0,
+      students: 0, // مؤقتاً صفر حتى ننشئ علاقة الطلاب بالمعلمين
       activeCourses: stats?.active_courses || 0,
       revenue: stats?.revenue || 0,
       sessions,

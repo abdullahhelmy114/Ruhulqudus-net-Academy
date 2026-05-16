@@ -33,11 +33,11 @@ export default function StudentDashboard() {
   const [selectedRecording, setSelectedRecording] = useState<{ url: string; title: string } | null>(null);
 
   useEffect(() => {
-    if (!user) return;
-    fetch(`/api/student/dashboard?uid=${user.uid}`)
-      .then(r => r.json())
+   if (!user || !user.uid) return;
+   fetch(`/api/student/dashboard?uid=${user.uid}`)
+     .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
+     .catch(() => setLoading(false));
   }, [user]);
 
   useEffect(() => {
