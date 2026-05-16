@@ -8,7 +8,10 @@ export async function GET(request: Request) {
   if (!uid) return NextResponse.json({ error: 'Missing uid' }, { status: 400 });
 
   try {
-    const [profile] = await sql`SELECT full_name, email, certification_progress FROM profiles WHERE firebase_uid = ${uid} AND role = 'teacher'`;
+    const [profile] = await sql`
+      SELECT full_name, email
+      FROM profiles WHERE firebase_uid = ${uid} AND role = 'teacher'
+    `;
     if (!profile) return NextResponse.json({ error: 'Teacher not found' }, { status: 404 });
 
     const [stats] = await sql`
@@ -28,10 +31,10 @@ export async function GET(request: Request) {
     return NextResponse.json({
       fullName: profile.full_name || 'Teacher',
       initial: (profile.full_name || 'T').charAt(0).toUpperCase(),
-      certificationProgress: profile.certification_progress || 62,
-      students: stats.students || 0,
-      activeCourses: stats.active_courses || 0,
-      revenue: stats.revenue || 0,
+      certificationProgress: 0, // عمود غير موجود حالياً، يُعرض صفر
+      students: stats?.students || 0,
+      activeCourses: stats?.active_courses || 0,
+      revenue: stats?.revenue || 0,
       sessions,
     });
   } catch (err: any) {
