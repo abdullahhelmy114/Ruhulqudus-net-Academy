@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { Loader2, Users, MessageSquare, Settings, Maximize2, Minimize2, ArrowLeft } from "lucide-react";
+import { Loader2, Users, MessageSquare, Maximize2, Minimize2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { YouTubeEmbed } from "@/components/ui/YouTubeEmbed";
 
 interface LessonInfo {
   id: string;
@@ -14,6 +15,7 @@ interface LessonInfo {
   meetingId: string;
   teacherUid: string;
   courseId: string;
+  recording_url?: string;
 }
 
 export default function LiveLessonPage() {
@@ -54,11 +56,10 @@ export default function LiveLessonPage() {
     }
   };
 
-  // التحقق من الصلاحية: معلم (هو صاحب الدرس) أو طالب (مسجل لاحقاً)
   const canJoin = lesson && user && (
     (role === "teacher" && user.uid === lesson.teacherUid) ||
     (role === "admin") ||
-    (role === "student") // مؤقتاً أي طالب، لاحقاً نضيف تسجيل الدورة
+    (role === "student")
   );
 
   if (authLoading || loading) {
@@ -138,9 +139,23 @@ export default function LiveLessonPage() {
               </div>
             </div>
           )}
+
+          {/* عرض تسجيل يوتيوب بعد انتهاء المحاضرة */}
+          {lesson.recording_url && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="absolute bottom-0 left-0 right-0 bg-black/80 p-4"
+            >
+              <div className="max-w-4xl mx-auto">
+                <h3 className="font-serif text-lg text-white mb-3">📺 Lesson Recording</h3>
+                <YouTubeEmbed url={lesson.recording_url} title={lesson.title} />
+              </div>
+            </motion.div>
+          )}
         </div>
 
-        {/* شريط جانبي (للمحادثة/الملاحظات) */}
+        {/* شريط جانبي */}
         {sidebarOpen && !fullscreen && (
           <motion.div
             initial={{ width: 0 }}

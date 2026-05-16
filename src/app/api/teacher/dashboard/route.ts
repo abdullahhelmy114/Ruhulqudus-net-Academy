@@ -14,9 +14,9 @@ export async function GET(request: Request) {
     `;
     if (!profile) return NextResponse.json({ error: 'Teacher not found' }, { status: 404 });
 
+    // إحصائيات مؤقتة بدون أعمدة غير موجودة
     const [stats] = await sql`
       SELECT
-        (SELECT COUNT(*) FROM profiles WHERE role = 'student' AND teacher_uid = ${uid}) AS students,
         (SELECT COUNT(*) FROM courses WHERE teacher_uid = ${uid} AND status = 'published') AS active_courses,
         (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE teacher_uid = ${uid}) AS revenue
     `;
@@ -31,8 +31,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       fullName: profile.full_name || 'Teacher',
       initial: (profile.full_name || 'T').charAt(0).toUpperCase(),
-      certificationProgress: 0, // عمود غير موجود حالياً، يُعرض صفر
-      students: stats?.students || 0,
+      certificationProgress: 0, // لا يوجد عمود بعد
+      students: 0,              // لا يوجد عمود teacher_uid في profiles
       activeCourses: stats?.active_courses || 0,
       revenue: stats?.revenue || 0,
       sessions,

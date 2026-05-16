@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { Loader2, CheckCircle2, XCircle, Clock, Video, FileText, ArrowLeft } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Clock, Video, FileText, ArrowLeft, Play } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { YouTubeEmbed } from "@/components/ui/YouTubeEmbed";
 
 interface PendingLesson {
   id: string;
@@ -20,6 +21,7 @@ interface PendingLesson {
   created_at: string;
   meeting_url: string | null;
   meeting_id: string | null;
+  recording_url?: string;
 }
 
 export default function PendingLessonsPage() {
@@ -132,6 +134,11 @@ export default function PendingLessonsPage() {
                     <p className="text-[10px] text-muted-foreground mt-1">
                       Submitted: {new Date(lesson.created_at).toLocaleString()}
                     </p>
+                    {lesson.recording_url && (
+                      <div className="mt-2">
+                        <YouTubeEmbed url={lesson.recording_url} title={lesson.title} />
+                      </div>
+                    )}
                   </div>
                 </div>
 

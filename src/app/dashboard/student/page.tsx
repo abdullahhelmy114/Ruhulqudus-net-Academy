@@ -6,9 +6,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Award, Copy, GraduationCap, Trophy, ChevronRight,
-  BookOpen, Loader2, Video, Clock,
+  BookOpen, Loader2, Video, Clock, Play,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { YouTubeEmbed } from "@/components/ui/YouTubeEmbed";
 
 interface LiveSession {
   id: string; title: string; scheduled_at: string; meeting_url: string;
@@ -19,7 +20,7 @@ interface DashboardData {
   firstName: string;
   streak: number;
   inProgress: { title: string; next: string; progress: number; courseId: string }[];
-  completed: { title: string; date: string }[];
+  completed: { title: string; date: string; courseId: string; recording_url?: string }[];
   referral: { code: string; count: number; credits: number };
   sessions: LiveSession[];
 }
@@ -29,6 +30,7 @@ export default function StudentDashboard() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedRecording, setSelectedRecording] = useState<{ url: string; title: string } | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -128,6 +130,33 @@ export default function StudentDashboard() {
               )}
             </div>
           </section>
+
+          {/* Completed Courses with Recording */}
+          {data.completed.length > 0 && (
+            <section>
+              <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.25em] text-amber-600">Your milestones</div>
+              <h2 className="font-serif text-2xl">Completed</h2>
+              <div className="mt-4 space-y-3">
+                {data.completed.map(c => (
+                  <div key={c.courseId} className="flex items-center gap-3 rounded-2xl border bg-card p-4">
+                    <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-500/20 text-amber-700"><Award className="h-5 w-5" /></div>
+                    <div className="flex-1">
+                      <div className="font-serif text-sm">{c.title}</div>
+                      <div className="text-xs text-muted-foreground">Completed {c.date}</div>
+                    </div>
+                    {c.recording_url && (
+                      <button
+                        onClick={() => setSelectedRecording({ url: c.recording_url!, title: c.title })}
+                        className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-medium text-white flex items-center gap-1"
+                      >
+                        <Play size={12} /> Watch
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
 
         <div className="space-y-8">
@@ -141,8 +170,8 @@ export default function StudentDashboard() {
               </div>
             ) : (
               <div className="mt-4 space-y-3">
-                {data.completed.map((c, i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-2xl border bg-card p-4">
+                {data.completed.map(c => (
+                  <div key={c.courseId} className="flex items-center gap-3 rounded-2xl border bg-card p-4">
                     <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-500/20 text-amber-700"><Award className="h-5 w-5" /></div>
                     <div>
                       <div className="font-serif text-sm">{c.title}</div>
@@ -186,6 +215,28 @@ export default function StudentDashboard() {
           </Link>
         </div>
       </div>
+
+      {/* Recording Modal */}
+      {selectedRecording && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-card rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-auto p-4"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-serif text-lg">{selectedRecording.title}</h3>
+              <button
+                onClick={() => setSelectedRecording(null)}
+                className="text-sm text-muted-foreground hover:underline"
+              >
+                Close
+              </button>
+            </div>
+            <YouTubeEmbed url={selectedRecording.url} title={selectedRecording.title} />
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
