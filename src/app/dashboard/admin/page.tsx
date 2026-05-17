@@ -219,13 +219,13 @@ function CourseModerationTab() {
   }, []);
 
   const handleCourseAction = async (id: string, status: string) => {
-    await fetch(`/api/courses/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    setCourses(prev => prev.filter(c => c.id !== id));
-  };
+  await fetch(`/api/courses/${id}/approve`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  setCourses(prev => prev.filter(c => c.id !== id));
+};
 
   const handleLessonAction = async (id: string, status: string) => {
     await fetch(`/api/lessons/${id}`, {

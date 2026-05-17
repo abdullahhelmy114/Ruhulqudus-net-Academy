@@ -5,7 +5,7 @@ import { sql } from '@/lib/db/client';
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { courseId: string } }
 ) {
   try {
     const { status } = await request.json();
@@ -16,7 +16,7 @@ export async function PUT(
     const result = await sql`
       UPDATE courses
       SET status = ${status}
-      WHERE id = ${params.id}
+      WHERE id = ${params.courseId}
       RETURNING id, title, status
     `;
     if (result.length === 0) {
