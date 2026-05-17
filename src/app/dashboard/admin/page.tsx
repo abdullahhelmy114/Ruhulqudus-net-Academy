@@ -219,12 +219,24 @@ function CourseModerationTab() {
   }, []);
 
   const handleCourseAction = async (id: string, status: string) => {
-  await fetch(`/api/courses/${id}/approve`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status }),
-  });
-  setCourses(prev => prev.filter(c => c.id !== id));
+  try {
+    const res = await fetch(`/api/courses/${id}/approve`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      alert(`Failed: ${err.error || 'Unknown error'}`);
+      return;
+    }
+
+    // فقط إذا نجح التحديث، نُزيل الكورس من القائمة
+    setCourses(prev => prev.filter(c => c.id !== id));
+  } catch (e: any) {
+    alert(`Network error: ${e.message}`);
+  }
 };
 
   const handleLessonAction = async (id: string, status: string) => {
