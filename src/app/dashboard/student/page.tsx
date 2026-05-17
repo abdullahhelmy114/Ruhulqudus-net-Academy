@@ -25,7 +25,16 @@ interface DashboardData {
   sessions: LiveSession[];
 }
 
+interface EnrolledCourse {
+  id: string;
+  title: string;
+  level: string;
+  total_lessons: number;
+  completed_lessons: number;
+}
+
 export default function StudentDashboard() {
+  const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([]);
   const { user, isLoading, role } = useAuth();
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -46,6 +55,15 @@ export default function StudentDashboard() {
       else if (role !== "student" && role !== "admin") router.push("/login");
     }
   }, [user, isLoading, role, router]);
+
+  useEffect(() => {
+  if (!user) return;
+  fetch(`/api/student/courses?uid=${user.uid}`)
+    .then(r => r.json())
+    .then(d => setEnrolledCourses(d.courses || []))
+    .catch(console.error);
+}, [user]);
+
 
   if (isLoading || loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
   if (!user || !data) return null;
@@ -103,33 +121,36 @@ export default function StudentDashboard() {
       {/* Main Content */}
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="space-y-10 lg:col-span-2">
-          <section>
-            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.25em] text-amber-600">Continue your studies</div>
-            <h2 className="font-serif text-2xl">In Progress</h2>
-            <div className="mt-4 space-y-4">
-              {data.inProgress.length === 0 ? (
-                <div className="rounded-4xl border bg-card p-8 text-center text-muted-foreground">
-                  <BookOpen className="mx-auto h-8 w-8 text-amber-500 mb-3" />
-                  <p>You are not enrolled in any courses yet.</p>
-                  <Link href="/marketplace" className="mt-3 inline-block text-sm font-medium text-amber-600 hover:underline">Browse Courses →</Link>
-                </div>
-              ) : (
-                data.inProgress.map(c => (
-                  <div key={c.courseId} className="rounded-3xl border bg-card p-5 shadow-elegant">
-                    <h3 className="font-serif text-lg">{c.title}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{c.next}</p>
-                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full bg-linear-to-r from-amber-400 to-amber-500" style={{ width: `${c.progress}%` }} />
-                    </div>
-                    <div className="mt-2 flex justify-between text-xs">
-                      <span className="text-muted-foreground">{c.progress}% complete</span>
-                      <Link href={`/dashboard/student/courses/${c.courseId}`} className="font-semibold text-amber-600 hover:underline">Resume →</Link>
-                    </div>
+          {/* My Courses */}
+        <section>
+          <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.25em] text-amber-600">My Courses</div>
+          <h2 className="font-serif text-2xl">Enrolled Courses</h2>
+          <div className="mt-4 space-y-4">
+            {enrolledCourses.length === 0 ? (
+              <div className="rounded-4xl border bg-card p-8 text-center text-muted-foreground">
+                <BookOpen className="mx-auto h-8 w-8 text-amber-500 mb-3" />
+                <p>You haven't enrolled in any courses yet.</p>
+                <Link href="/marketplace" className="mt-3 inline-block text-sm font-medium text-amber-600 hover:underline">Browse Courses →</Link>
+          </div>
+          ) : (
+           enrolledCourses.map(c => (
+              <div key={c.id} className="rounded-3xl border bg-card p-5 shadow-elegant">
+                <h3 className="font-serif text-lg">{c.title}</h3>
+                <p className="text-sm text-muted-foreground">Level {c.level}</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="h-2 flex-1 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500" style={{ width: `${(c.completed_lessons / c.total_lessons) * 100 || 0}%` }} />
                   </div>
-                ))
-              )}
-            </div>
-          </section>
+                  <span className="text-xs text-muted-foreground">{c.completed_lessons}/{c.total_lessons}</span>
+                </div>
+                <Link href={`/dashboard/student/courses/${c.id}`} className="mt-3 inline-block text-sm font-semibold text-amber-600 hover:underline">
+                 View Course →
+                </Link>
+             </div>
+           ))
+         )}
+        </div>
+      </section>
 
           {/* Completed Courses with Recording */}
           {data.completed.length > 0 && (
