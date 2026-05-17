@@ -53,35 +53,35 @@ export default function TeacherDashboard() {
   const [savingLesson, setSavingLesson] = useState(false);
   const [lessonError, setLessonError] = useState("");
 
-  useEffect(() => {
-    if (!user || role !== "teacher") return;
-    const fetchData = async () => {
-      try {
-        const [teacherRes, coursesRes, ratingRes] = await Promise.all([
-          fetch(`/api/teacher/dashboard?uid=${user.uid}`),
-          fetch(`/api/teacher/courses?uid=${user.uid}`),
-          fetch(`/api/teacher/rating`),
-        ]);
-        const teacherJson = await teacherRes.json();
-        const coursesJson = await coursesRes.json();
-        const ratingJson = await ratingRes.json();
+useEffect(() => {
+  if (!user || !user.uid || role !== "teacher") return;
+  const fetchData = async () => {
+    try {
+      const [teacherRes, coursesRes, ratingRes] = await Promise.all([
+        fetch(`/api/teacher/dashboard?uid=${user.uid}`),
+        fetch(`/api/teacher/courses?uid=${user.uid}`),
+        fetch(`/api/teacher/rating?uid=${user.uid}`), // أضفنا uid هنا
+      ]);
+      const teacherJson = await teacherRes.json();
+      const coursesJson = await coursesRes.json();
+      const ratingJson = await ratingRes.json();
 
-        if (teacherRes.ok && coursesRes.ok) {
-          setData({ ...teacherJson, courses: coursesJson.courses || [] });
-          setRatingData(ratingJson);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+      if (teacherRes.ok && coursesRes.ok) {
+        setData({ ...teacherJson, courses: coursesJson.courses || [] });
+        setRatingData(ratingJson);
       }
-    };
-    fetchData();
-  }, [user, role]);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchData();
+}, [user, role]);
 
-  useEffect(() => {
-    if (!isLoading && (!user || (role !== "teacher" && role !== "admin"))) router.push("/login");
-  }, [user, isLoading, role, router]);
+useEffect(() => {
+  if (!isLoading && (!user || (role !== "teacher" && role !== "admin"))) router.push("/login");
+}, [user, isLoading, role, router]);
 
   if (isLoading || loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
   if (!data) return null;
