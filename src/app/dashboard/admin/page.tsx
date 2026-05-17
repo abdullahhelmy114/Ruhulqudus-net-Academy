@@ -36,7 +36,7 @@ export default function AdminDashboard() {
       {/* Header */}
       <div className="flex flex-col items-start justify-between gap-4 rounded-3xl border bg-card p-6 shadow-elegant md:flex-row md:items-center">
         <div className="flex items-center gap-4">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-700 ring-4 ring-amber-500/30">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-linear-to-r from-emerald-600 to-emerald-700 ring-4 ring-amber-500/30">
             <Crown className="h-6 w-6 text-white" />
           </div>
           <div>
@@ -58,7 +58,7 @@ export default function AdminDashboard() {
           const Icon = t.icon;
           const active = tab === t.key;
           return (
-            <button key={t.key} onClick={() => setTab(t.key)} className={cn("inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all", active ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-elegant" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
+            <button key={t.key} onClick={() => setTab(t.key)} className={cn("inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all", active ? "bg-linear-to-r from-emerald-600 to-emerald-700 text-white shadow-elegant" : "text-muted-foreground hover:bg-accent hover:text-foreground")}>
               <Icon className="h-4 w-4" /> {t.label}
             </button>
           );

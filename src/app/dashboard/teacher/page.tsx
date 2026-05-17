@@ -44,6 +44,8 @@ export default function TeacherDashboard() {
   const [data, setData] = useState<TeacherData | null>(null);
   const [ratingData, setRatingData] = useState<RatingData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // New Lesson states
   const [showLessonModal, setShowLessonModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState("");
   const [lessonType, setLessonType] = useState<"zoom" | "recorded">("zoom");
@@ -53,35 +55,45 @@ export default function TeacherDashboard() {
   const [savingLesson, setSavingLesson] = useState(false);
   const [lessonError, setLessonError] = useState("");
 
-useEffect(() => {
-  if (!user || !user.uid || role !== "teacher") return;
-  const fetchData = async () => {
-    try {
-      const [teacherRes, coursesRes, ratingRes] = await Promise.all([
-        fetch(`/api/teacher/dashboard?uid=${user.uid}`),
-        fetch(`/api/teacher/courses?uid=${user.uid}`),
-        fetch(`/api/teacher/rating?uid=${user.uid}`), // أضفنا uid هنا
-      ]);
-      const teacherJson = await teacherRes.json();
-      const coursesJson = await coursesRes.json();
-      const ratingJson = await ratingRes.json();
+  // New Course states
+  const [showCourseModal, setShowCourseModal] = useState(false);
+  const [newCourseTitle, setNewCourseTitle] = useState('');
+  const [newCourseLevel, setNewCourseLevel] = useState('A1');
+  const [newCoursePrice, setNewCoursePrice] = useState(49);
+  const [savingCourse, setSavingCourse] = useState(false);
+  const [courseError, setCourseError] = useState('');
 
-      if (teacherRes.ok && coursesRes.ok) {
-        setData({ ...teacherJson, courses: coursesJson.courses || [] });
-        setRatingData(ratingJson);
+  // Fetch data
+  useEffect(() => {
+    if (!user || !user.uid || role !== "teacher") return;
+    const fetchData = async () => {
+      try {
+        const [teacherRes, coursesRes, ratingRes] = await Promise.all([
+          fetch(`/api/teacher/dashboard?uid=${user.uid}`),
+          fetch(`/api/teacher/courses?uid=${user.uid}`),
+          fetch(`/api/teacher/rating?uid=${user.uid}`),
+        ]);
+        const teacherJson = await teacherRes.json();
+        const coursesJson = await coursesRes.json();
+        const ratingJson = await ratingRes.json();
+
+        if (teacherRes.ok && coursesRes.ok) {
+          setData({ ...teacherJson, courses: coursesJson.courses || [] });
+          setRatingData(ratingJson);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-  fetchData();
-}, [user, role]);
+    };
+    fetchData();
+  }, [user, role]);
 
-useEffect(() => {
-  if (!isLoading && (!user || (role !== "teacher" && role !== "admin"))) router.push("/login");
-}, [user, isLoading, role, router]);
+  // Auth guard
+  useEffect(() => {
+    if (!isLoading && (!user || (role !== "teacher" && role !== "admin"))) router.push("/login");
+  }, [user, isLoading, role, router]);
 
   if (isLoading || loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
   if (!data) return null;
@@ -93,6 +105,7 @@ useEffect(() => {
     return n >= new Date(t.getTime() - 10*60*1000) && n <= new Date(t.getTime() + 60*60*1000);
   };
 
+  // ─── Save Lesson Handler ─────────────────────────────
   const handleSaveLesson = async () => {
     if (!selectedCourse) { setLessonError("Please select a course"); return; }
     if (!lessonTitle.trim()) { setLessonError("Lesson title is required"); return; }
@@ -135,6 +148,40 @@ useEffect(() => {
     }
   };
 
+  // ─── Save Course Handler ─────────────────────────────
+  const handleSaveCourse = async () => {
+    if (!newCourseTitle.trim()) { setCourseError('Title is required'); return; }
+    setSavingCourse(true);
+    setCourseError('');
+    try {
+      const res = await fetch('/api/courses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newCourseTitle,
+          level: newCourseLevel,
+          price: newCoursePrice,
+          teacherUid: user!.uid,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setCourseError(err.error || 'Failed to create course');
+      } else {
+        const json = await res.json();
+        setData(prev => prev ? { ...prev, courses: [...prev.courses, json.course] } : prev);
+        setShowCourseModal(false);
+        setNewCourseTitle('');
+        setNewCourseLevel('A1');
+        setNewCoursePrice(49);
+      }
+    } catch (e: any) {
+      setCourseError(e.message);
+    } finally {
+      setSavingCourse(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-10 md:px-8 bg-background min-h-screen">
       {/* Header */}
@@ -151,7 +198,19 @@ useEffect(() => {
         </div>
         <div className="flex w-full gap-3 md:w-auto">
           <button
-            onClick={() => setShowLessonModal(true)}
+            onClick={() => setShowCourseModal(true)}
+            className="inline-flex items-center gap-2 rounded-full border bg-background px-6 py-3 text-sm font-medium hover:bg-accent"
+          >
+            <Upload className="h-4 w-4 text-amber-500" /> New Course
+          </button>
+          <button
+            onClick={() => {
+              if (data.courses.filter(c => c.status === 'published').length === 0) {
+                alert('You need to create a course first. Use "New Course".');
+              } else {
+                setShowLessonModal(true);
+              }
+            }}
             className="inline-flex items-center gap-2 rounded-full bg-linear-to-r from-emerald-600 to-emerald-700 px-6 py-3 text-sm font-bold text-white shadow-elegant"
           >
             <Plus className="h-4 w-4" /> New Lesson
@@ -216,7 +275,7 @@ useEffect(() => {
         </motion.div>
       )}
 
-      {/* Courses */}
+      {/* Courses List */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
           <h2 className="font-serif text-2xl">Your Courses</h2>
@@ -265,6 +324,46 @@ useEffect(() => {
         </div>
       </div>
 
+      {/* New Course Modal */}
+      <AnimatePresence>
+        {showCourseModal && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card rounded-3xl shadow-elegant max-w-md w-full p-6 space-y-6"
+            >
+              <h2 className="font-serif text-2xl">New Course</h2>
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Course Title</label>
+                <input value={newCourseTitle} onChange={(e) => setNewCourseTitle(e.target.value)} placeholder="e.g. Arabic for Beginners" className="mt-1 w-full rounded-2xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-gold" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Level</label>
+                  <select value={newCourseLevel} onChange={(e) => setNewCourseLevel(e.target.value)} className="w-full rounded-2xl border bg-background px-4 py-2.5 text-sm mt-1">
+                    <option>A1</option><option>A2</option><option>B1</option><option>B2</option><option>C1</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Price (USD)</label>
+                  <input type="number" value={newCoursePrice} onChange={(e) => setNewCoursePrice(parseInt(e.target.value))} className="w-full rounded-2xl border bg-background px-4 py-2.5 text-sm mt-1" />
+                </div>
+              </div>
+              {courseError && <p className="text-sm text-destructive">{courseError}</p>}
+              <div className="flex gap-3 justify-end">
+                <button onClick={() => setShowCourseModal(false)} className="rounded-full border bg-background px-5 py-2.5 text-sm">Cancel</button>
+                <button onClick={handleSaveCourse} disabled={savingCourse} className="rounded-full bg-linear-to-r from-emerald-600 to-emerald-700 px-6 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+                  {savingCourse ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Create Course'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* New Lesson Modal */}
       <AnimatePresence>
         {showLessonModal && (
@@ -287,6 +386,13 @@ useEffect(() => {
                     <option key={c.id} value={c.id}>{c.title} (Level {c.level})</option>
                   ))}
                 </select>
+                <button
+                  type="button"
+                  onClick={() => { setShowLessonModal(false); setShowCourseModal(true); }}
+                  className="text-xs text-amber-600 hover:underline mt-1 inline-block"
+                >
+                  + Create a new course
+                </button>
               </div>
 
               <div>
