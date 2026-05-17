@@ -105,6 +105,23 @@ export default function TeacherDashboard() {
     return n >= new Date(t.getTime() - 10*60*1000) && n <= new Date(t.getTime() + 60*60*1000);
   };
 
+  // إعادة جلب البيانات عندما يركز المستخدم على النافذة (بعد موافقة الأدمن مثلاً)
+useEffect(() => {
+  if (!user || !user.uid || role !== "teacher") return;
+
+  const onFocus = () => {
+    fetch(`/api/teacher/courses?uid=${user.uid}`)
+      .then(r => r.json())
+      .then(coursesJson => {
+        setData(prev => prev ? { ...prev, courses: coursesJson.courses || [] } : null);
+      })
+      .catch(console.error);
+  };
+
+  window.addEventListener('focus', onFocus);
+  return () => window.removeEventListener('focus', onFocus);
+}, [user, role]);
+
   // ─── Save Lesson Handler ─────────────────────────────
   const handleSaveLesson = async () => {
     if (!selectedCourse) { setLessonError("Please select a course"); return; }
