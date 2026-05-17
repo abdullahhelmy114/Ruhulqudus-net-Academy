@@ -7,7 +7,7 @@ import {
   Users, GraduationCap, DollarSign, TrendingUp, ShieldCheck, FileText,
   CheckCircle2, XCircle, Search, BookOpen, Clock, Wallet,
   Sparkles, Settings2, Crown, AlertCircle, ArrowUpRight, MoreHorizontal,
-  Filter, Download, Bot, Save, Loader2, Ban, UserCheck, ExternalLink,
+  Filter, Download, Bot, Save, Loader2, Ban, UserCheck, ExternalLink, Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -110,7 +110,7 @@ function OverviewTab() {
           const Icon = s.icon;
           return (
             <div key={s.label} className="relative overflow-hidden rounded-3xl border bg-card p-6 shadow-elegant">
-              <div className={`absolute inset-0 bg-gradient-to-br opacity-60 ${s.accent} to-transparent`} />
+              <div className={`absolute inset-0 bg-linear-to-br opacity-60 ${s.accent} to-transparent`} />
               <div className="relative">
                 <div className="flex items-center justify-between">
                   <div className="grid h-10 w-10 place-items-center rounded-xl bg-background/80 backdrop-blur">
@@ -128,7 +128,7 @@ function OverviewTab() {
         <div className="rounded-3xl border bg-card p-6 shadow-elegant lg:col-span-2">
           <h3 className="font-serif text-xl">Revenue Trend (last 30 days)</h3>
           <div className="mt-4 h-40 flex items-end gap-2">
-            {Array.from({length:12}).map((_,i)=> <div key={i} className="flex-1 rounded-t bg-gradient-to-t from-primary to-amber-500/70" style={{height: `${Math.random()*100}%`}}/>)}
+            {Array.from({length:12}).map((_,i)=> <div key={i} className="flex-1 rounded-t bg-linear-to-t from-primary to-amber-500/70" style={{height: `${Math.random()*100}%`}}/>)}
           </div>
         </div>
         <div className="rounded-3xl border bg-card p-6 shadow-elegant">
@@ -195,12 +195,31 @@ function TeacherVerificationTab() {
 /* ─────────── Course Moderation Tab ─────────── */
 function CourseModerationTab() {
   const [courses, setCourses] = useState<any[]>([]);
+  const [lessons, setLessons] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    fetch('/api/lessons?status=pending').then(r => r.json()).then(d => setCourses(d.lessons || []));
+    const fetchData = async () => {
+      try {
+        const [coursesRes, lessonsRes] = await Promise.all([
+          fetch('/api/admin/pending-courses'),
+          fetch('/api/lessons?status=pending'),
+        ]);
+        const coursesData = await coursesRes.json();
+        const lessonsData = await lessonsRes.json();
+        setCourses(coursesData.courses || []);
+        setLessons(lessonsData.lessons || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, []);
 
-  const handleAction = async (id: string, status: string) => {
-    await fetch(`/api/lessons/${id}`, {
+  const handleCourseAction = async (id: string, status: string) => {
+    await fetch(`/api/courses/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
@@ -208,25 +227,76 @@ function CourseModerationTab() {
     setCourses(prev => prev.filter(c => c.id !== id));
   };
 
+  const handleLessonAction = async (id: string, status: string) => {
+    await fetch(`/api/lessons/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    setLessons(prev => prev.filter(l => l.id !== id));
+  };
+
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>;
+
+  const totalPending = courses.length + lessons.length;
+
   return (
     <div>
-      <h2 className="font-serif text-2xl mb-4">Courses Awaiting Review</h2>
-      {courses.map(c => (
-        <div key={c.id} className="rounded-3xl border bg-card p-5 mb-3 flex justify-between">
-          <div>
-            <h3 className="font-serif">{c.title}</h3>
-            <p className="text-sm text-muted-foreground">{c.course_title} · {c.type}</p>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => handleAction(c.id, 'rejected')} className="px-3 py-1 rounded-full border border-red-500/30 text-red-600 text-sm">Reject</button>
-            <button onClick={() => handleAction(c.id, 'approved')} className="px-3 py-1 rounded-full bg-emerald-600 text-white text-sm">Publish</button>
-          </div>
+      <h2 className="font-serif text-2xl mb-4">Course & Lesson Moderation</h2>
+      {totalPending === 0 ? (
+        <div className="rounded-3xl border bg-card p-12 text-center text-muted-foreground">
+          No pending courses or lessons
         </div>
-      ))}
+      ) : (
+        <div className="space-y-6">
+          {/* Pending Courses */}
+          {courses.length > 0 && (
+            <div>
+              <h3 className="font-serif text-lg mb-3 flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-amber-500" /> Courses ({courses.length})
+              </h3>
+              {courses.map(c => (
+                <div key={c.id} className="rounded-2xl border bg-card p-4 mb-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div>
+                    <h4 className="font-medium">{c.title}</h4>
+                    <p className="text-xs text-muted-foreground">by {c.teacher_name} · Level {c.level} · ${c.price}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Submitted {new Date(c.created_at).toLocaleString()}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleCourseAction(c.id, 'rejected')} className="px-3 py-1 rounded-full border border-red-500/30 text-red-600 text-xs">Reject</button>
+                    <button onClick={() => handleCourseAction(c.id, 'published')} className="px-3 py-1 rounded-full bg-emerald-600 text-white text-xs">Publish</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Pending Lessons */}
+          {lessons.length > 0 && (
+            <div>
+              <h3 className="font-serif text-lg mb-3 flex items-center gap-2">
+                <Video className="h-5 w-5 text-amber-500" /> Lessons ({lessons.length})
+              </h3>
+              {lessons.map(l => (
+                <div key={l.id} className="rounded-2xl border bg-card p-4 mb-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div>
+                    <h4 className="font-medium">{l.title}</h4>
+                    <p className="text-xs text-muted-foreground">Course: {l.course_title} · Type: {l.type}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Submitted {new Date(l.created_at).toLocaleString()}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleLessonAction(l.id, 'rejected')} className="px-3 py-1 rounded-full border border-red-500/30 text-red-600 text-xs">Reject</button>
+                    <button onClick={() => handleLessonAction(l.id, 'approved')} className="px-3 py-1 rounded-full bg-emerald-600 text-white text-xs">Approve</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
-
 /* ─────────── User Management Tab ─────────── */
 function UserManagementTab() {
   const [users, setUsers] = useState<any[]>([]);
